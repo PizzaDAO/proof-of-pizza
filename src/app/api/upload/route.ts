@@ -4,6 +4,20 @@ import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
 
 export async function POST(request: NextRequest) {
   try {
+    // Check R2 config
+    if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) {
+      console.error("Missing R2 configuration:", {
+        hasAccountId: !!process.env.R2_ACCOUNT_ID,
+        hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
+        hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
+        hasBucket: !!process.env.R2_BUCKET_NAME,
+      });
+      return NextResponse.json(
+        { error: "Server configuration error - R2 not configured" },
+        { status: 500 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const type = formData.get("type") as string | null;
@@ -62,8 +76,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: `Failed to upload file: ${errorMessage}` },
       { status: 500 }
     );
   }
