@@ -28,25 +28,12 @@ export function useImageUpload({ type, onSuccess, onError }: UseImageUploadOptio
       setState({ isUploading: true, progress: 0, error: null, publicUrl: null });
 
       try {
-        // Get presigned URL
-        const presignResponse = await fetch("/api/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type,
-            type,
-          }),
-        });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("type", type);
 
-        if (!presignResponse.ok) {
-          throw new Error("Failed to get upload URL");
-        }
-
-        const { uploadUrl, publicUrl } = await presignResponse.json();
-
-        // Upload to R2 with progress tracking
-        await new Promise<void>((resolve, reject) => {
+        // Upload through our API with progress tracking
+        const publicUrl = await new Promise<string>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
 
           xhr.upload.addEventListener("progress", (e) => {
@@ -58,19 +45,28 @@ export function useImageUpload({ type, onSuccess, onError }: UseImageUploadOptio
 
           xhr.addEventListener("load", () => {
             if (xhr.status >= 200 && xhr.status < 300) {
-              resolve();
+              try {
+                const response = JSON.parse(xhr.responseText);
+                resolve(response.publicUrl);
+              } catch {
+                reject(new Error("Invalid response from server"));
+              }
             } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
+              try {
+                const error = JSON.parse(xhr.responseText);
+                reject(new Error(error.error || `Upload failed with status ${xhr.status}`));
+              } catch {
+                reject(new Error(`Upload failed with status ${xhr.status}`));
+              }
             }
           });
 
           xhr.addEventListener("error", () => {
-            reject(new Error("Upload failed"));
+            reject(new Error("Upload failed - network error"));
           });
 
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.send(file);
+          xhr.open("POST", "/api/upload");
+          xhr.send(formData);
         });
 
         setState({
