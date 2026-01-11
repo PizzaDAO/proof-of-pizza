@@ -2,8 +2,9 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
+import { AdminProviders } from "@/providers/AdminProviders";
 
-export default function AdminPage() {
+function AdminContent() {
   const { login, logout, authenticated, ready, user } = usePrivy();
 
   if (!ready) {
@@ -102,5 +103,13 @@ export default function AdminPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <AdminProviders>
+      <AdminContent />
+    </AdminProviders>
   );
 }
