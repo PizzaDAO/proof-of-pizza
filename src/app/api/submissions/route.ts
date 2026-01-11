@@ -74,12 +74,24 @@ export async function POST(request: NextRequest) {
 
     // Log to Google Sheets (async, don't wait)
     logSubmission({
-      ...submission,
+      id: submission.id,
+      walletAddress: submission.walletAddress,
+      ensName: submission.ensName,
       extractedAmount: Number(submission.extractedAmount),
       finalAmount: Number(submission.finalAmount),
+      currency: submission.currency,
       originalAmount: data.originalAmount,
       originalCurrency: data.originalCurrency,
       exchangeRate: data.exchangeRate,
+      receiptPhotoUrl: submission.receiptPhotoUrl,
+      pizzaPhotoUrl: submission.pizzaPhotoUrl,
+      status: submission.status,
+      transactionHash: submission.transactionHash,
+      paidAmount: submission.paidAmount ? Number(submission.paidAmount) : null,
+      paidAt: submission.paidAt,
+      reviewedBy: submission.reviewedBy,
+      rejectionReason: submission.rejectionReason,
+      createdAt: submission.createdAt,
     }).catch(console.error);
 
     return NextResponse.json(submission, { status: 201 });
