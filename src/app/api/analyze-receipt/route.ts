@@ -5,7 +5,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
 
 const requestSchema = z.object({
-  imageUrl: z.string().url(),
+  imageUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
 });
 
 const responseSchema = z.object({
@@ -148,9 +148,18 @@ async function convertToUSD(amount: number, fromCurrency: string): Promise<{
 }
 
 async function getImageAsBase64(imageUrl: string): Promise<string> {
-  // Extract the key from the R2 URL
-  const url = new URL(imageUrl);
-  const key = url.pathname.slice(1); // Remove leading slash
+  // Extract the key from the URL
+  // Handle both /api/images/... proxy URLs and full URLs
+  let key: string;
+
+  if (imageUrl.startsWith("/api/images/")) {
+    // Proxy URL format: /api/images/receipt/123-abc.jpg
+    key = imageUrl.replace("/api/images/", "");
+  } else {
+    // Full URL format
+    const url = new URL(imageUrl);
+    key = url.pathname.slice(1); // Remove leading slash
+  }
 
   try {
     // Fetch directly from R2 using S3 client
@@ -169,16 +178,9 @@ async function getImageAsBase64(imageUrl: string): Promise<string> {
     const base64 = Buffer.from(bodyContents).toString("base64");
     const contentType = response.ContentType || "image/jpeg";
     return `data:${contentType};base64,${base64}`;
-  } catch {
-    // Fallback: try fetching via HTTP (if public access is enabled)
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    return `data:${contentType};base64,${base64}`;
+  } catch (error) {
+    console.error("Failed to fetch from R2:", error);
+    throw new Error(`Failed to fetch image from storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
