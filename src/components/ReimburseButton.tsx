@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { getBaseScanUrl } from "@/lib/constants";
 
@@ -22,7 +23,7 @@ export function ReimburseButton({
   transactionHash,
   onStatusChange,
 }: ReimburseButtonProps) {
-  const { login, authenticated, ready } = usePrivy();
+  const { isConnected, isConnecting } = useAccount();
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +131,7 @@ export function ReimburseButton({
   }
 
   // Not connected
-  if (!ready) {
+  if (isConnecting) {
     return (
       <button
         disabled
@@ -141,15 +142,17 @@ export function ReimburseButton({
     );
   }
 
-  if (!authenticated) {
-    return (
-      <button
-        onClick={login}
-        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-      >
-        Connect Wallet
-      </button>
-    );
+  if (!isConnected) {
+    return <ConnectButton.Custom>
+      {({ openConnectModal }) => (
+        <button
+          onClick={openConnectModal}
+          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+        >
+          Connect Wallet
+        </button>
+      )}
+    </ConnectButton.Custom>;
   }
 
   // Ready to reimburse

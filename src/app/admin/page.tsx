@@ -1,13 +1,14 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
 import { AdminProviders } from "@/providers/AdminProviders";
 
 function AdminContent() {
-  const { login, logout, authenticated, ready, user } = usePrivy();
+  const { address, isConnected, isConnecting } = useAccount();
 
-  if (!ready) {
+  if (isConnecting) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -38,36 +39,13 @@ function AdminContent() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {authenticated ? (
-              <>
-                <span className="text-sm text-gray-600 font-mono">
-                  {user?.wallet?.address
-                    ? `${user.wallet.address.slice(0, 6)}...${user.wallet.address.slice(-4)}`
-                    : "Connected"}
-                </span>
-                <button
-                  onClick={logout}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Disconnect
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={login}
-                className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                Connect Wallet
-              </button>
-            )}
-          </div>
+          <ConnectButton />
         </div>
       </header>
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {authenticated ? (
+        {isConnected ? (
           <SubmissionQueue />
         ) : (
           <div className="text-center py-16">
@@ -93,12 +71,7 @@ function AdminContent() {
               Connect your wallet to access the admin panel and process pizza
               reimbursements.
             </p>
-            <button
-              onClick={login}
-              className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Connect Wallet
-            </button>
+            <ConnectButton />
           </div>
         )}
       </main>

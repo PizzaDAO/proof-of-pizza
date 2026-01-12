@@ -1,56 +1,26 @@
 "use client";
 
-import { PrivyProvider } from "@privy-io/react-auth";
-import { base } from "viem/chains";
-import { useState, useEffect } from "react";
+import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import { WagmiProvider } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { wagmiConfig } from "@/lib/wagmi-config";
+import { useState } from "react";
+import "@rainbow-me/rainbowkit/styles.css";
 
 export function AdminProviders({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Show loading state until mounted and we have the app ID
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!privyAppId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 font-medium">Privy not configured</p>
-          <p className="text-gray-500 text-sm mt-1">NEXT_PUBLIC_PRIVY_APP_ID is missing</p>
-        </div>
-      </div>
-    );
-  }
+  const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <PrivyProvider
-      appId={privyAppId}
-      config={{
-        appearance: {
-          theme: "light",
-          accentColor: "#FF6B35",
-          logo: "/pizza-logo.png",
-        },
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: "users-without-wallets",
-          },
-        },
-        defaultChain: base,
-        supportedChains: [base],
-      }}
-    >
-      {children}
-    </PrivyProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider
+          appInfo={{
+            appName: "Proof of Pizza Admin",
+          }}
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }

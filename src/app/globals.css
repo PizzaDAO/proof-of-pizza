@@ -24,3 +24,38 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Bottom-right project links (Sheets + GitHub) */
+.corner-links {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.corner-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.corner-links a:hover {
+  opacity: 1;
+}
+
+.corner-links img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  .corner-links img {
+    filter: invert(1);
+  }
+}
