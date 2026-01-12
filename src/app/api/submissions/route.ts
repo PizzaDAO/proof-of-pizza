@@ -8,8 +8,16 @@ initializeSheet().catch(console.error);
 
 type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 
+// Ethereum address validation: 0x followed by 40 hex characters
+const ethereumAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+
 const createSubmissionSchema = z.object({
-  walletAddress: z.string().min(1),
+  walletAddress: z
+    .string()
+    .transform((s) => s.trim())
+    .refine((s) => ethereumAddressRegex.test(s), {
+      message: "Invalid Ethereum address format",
+    }),
   ensName: z.string().optional(),
   pizzaPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
   receiptPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs

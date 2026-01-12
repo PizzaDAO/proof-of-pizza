@@ -159,7 +159,7 @@ export function ReimburseButton({
   return (
     <div>
       <button
-        onClick={() => transfer(walletAddress, amount)}
+        onClick={() => transfer(walletAddress.trim(), amount)}
         className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
       >
         Reimburse ${amount.toFixed(2)}
