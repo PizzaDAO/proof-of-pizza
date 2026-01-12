@@ -11,8 +11,8 @@ type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 const createSubmissionSchema = z.object({
   walletAddress: z.string().min(1),
   ensName: z.string().optional(),
-  pizzaPhotoUrl: z.string().url(),
-  receiptPhotoUrl: z.string().url(),
+  pizzaPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
+  receiptPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
   extractedAmount: z.number().positive(),
   finalAmount: z.number().positive(),
   currency: z.string().default("USD"),
