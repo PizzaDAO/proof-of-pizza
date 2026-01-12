@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEnsResolution } from "@/hooks/useEnsResolution";
 
 interface WalletAddressInputProps {
@@ -15,11 +17,18 @@ export function WalletAddressInput({
   className = "",
 }: WalletAddressInputProps) {
   const [input, setInput] = useState(value);
+  const { address: connectedAddress, isConnected } = useAccount();
   const { address, isEns, isLoading, isValid, error } = useEnsResolution(input);
 
   useEffect(() => {
     onChange(input, address);
   }, [input, address, onChange]);
+
+  const useConnectedWallet = () => {
+    if (connectedAddress) {
+      setInput(connectedAddress);
+    }
+  };
 
   return (
     <div className={className}>
@@ -62,6 +71,31 @@ export function WalletAddressInput({
               />
             </svg>
           </div>
+        )}
+      </div>
+
+      {/* Connect wallet option */}
+      <div className="mt-3 flex items-center gap-3">
+        {isConnected ? (
+          <button
+            type="button"
+            onClick={useConnectedWallet}
+            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+          >
+            Use connected wallet ({connectedAddress?.slice(0, 6)}...{connectedAddress?.slice(-4)})
+          </button>
+        ) : (
+          <ConnectButton.Custom>
+            {({ openConnectModal }) => (
+              <button
+                type="button"
+                onClick={openConnectModal}
+                className="text-sm text-gray-500 hover:text-orange-600 transition-colors"
+              >
+                Or connect wallet
+              </button>
+            )}
+          </ConnectButton.Custom>
         )}
       </div>
 
