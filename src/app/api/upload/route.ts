@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
+import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
-    // Check R2 config
-    if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) {
-      console.error("Missing R2 configuration:", {
-        hasAccountId: !!process.env.R2_ACCOUNT_ID,
-        hasAccessKey: !!process.env.R2_ACCESS_KEY_ID,
-        hasSecretKey: !!process.env.R2_SECRET_ACCESS_KEY,
-        hasBucket: !!process.env.R2_BUCKET_NAME,
-      });
-      return NextResponse.json(
-        { error: "Server configuration error - R2 not configured" },
-        { status: 500 }
-      );
-    }
-
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const type = formData.get("type") as string | null;
@@ -48,31 +33,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique key
+    // Generate unique filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
     const extension = file.name.split(".").pop() || "jpg";
-    const key = `${type}/${timestamp}-${randomId}.${extension}`;
+    const filename = `${type}/${timestamp}-${randomId}.${extension}`;
 
-    // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // Upload to R2
-    const command = new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-      Body: buffer,
-      ContentType: file.type,
+    // Upload to Vercel Blob
+    const blob = await put(filename, file, {
+      access: "public",
+      contentType: file.type,
     });
 
-    await r2Client.send(command);
-
-    // Return the proxy URL (goes through our API to avoid R2 access issues)
-    const publicUrl = `/api/images/${key}`;
-
     return NextResponse.json({
-      publicUrl,
-      key,
+      publicUrl: blob.url,
+      key: filename,
     });
   } catch (error) {
     console.error("Upload error:", error);
