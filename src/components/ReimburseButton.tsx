@@ -50,7 +50,15 @@ export function ReimburseButton({
       }
     },
     onError: (err) => {
-      setError(err.message);
+      // Simplify common error messages
+      const msg = err.message || String(err);
+      if (msg.includes("User rejected") || msg.includes("User denied")) {
+        setError("User rejected the request.");
+      } else if (msg.includes("insufficient funds")) {
+        setError("Insufficient funds for transfer.");
+      } else {
+        setError(msg.split("\n")[0]); // Just show first line
+      }
     },
   });
 
