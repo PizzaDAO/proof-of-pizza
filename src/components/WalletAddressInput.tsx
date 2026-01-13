@@ -44,14 +44,14 @@ export function WalletAddressInput({
           placeholder="0x... or vitalik.eth"
           className={`
             w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors
-            ${error ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-red-500"}
+            ${error ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-orange-500"}
             ${isValid ? "border-green-300" : ""}
           `}
         />
 
         {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -80,7 +80,7 @@ export function WalletAddressInput({
           <button
             type="button"
             onClick={useConnectedWallet}
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
+            className="text-sm text-orange-600 hover:text-orange-700 font-medium"
           >
             Use connected wallet ({connectedAddress?.slice(0, 6)}...{connectedAddress?.slice(-4)})
           </button>
@@ -90,7 +90,7 @@ export function WalletAddressInput({
               <button
                 type="button"
                 onClick={openConnectModal}
-                className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                className="text-sm text-gray-500 hover:text-orange-600 transition-colors"
               >
                 Or connect wallet
               </button>

@@ -130,9 +130,9 @@ export function ReimburseButton({
     return (
       <button
         disabled
-        className="inline-flex items-center space-x-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg"
+        className="inline-flex items-center space-x-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-lg"
       >
-        <div className="w-4 h-4 border-2 border-red-700 border-t-transparent rounded-full animate-spin" />
+        <div className="w-4 h-4 border-2 border-orange-700 border-t-transparent rounded-full animate-spin" />
         <span>Sign in wallet...</span>
       </button>
     );
@@ -155,7 +155,7 @@ export function ReimburseButton({
       {({ openConnectModal }) => (
         <button
           onClick={openConnectModal}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
         >
           Connect Wallet
         </button>
@@ -168,7 +168,7 @@ export function ReimburseButton({
     <div>
       <button
         onClick={() => transfer(walletAddress.trim(), amount)}
-        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
       >
         Reimburse ${amount.toFixed(2)}
       </button>

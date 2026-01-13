@@ -13,7 +13,7 @@ function AdminContent() {
           <div className="flex items-center space-x-4">
             <a
               href="/"
-              className="text-gray-400 hover:text-red-500 transition-colors"
+              className="text-gray-400 hover:text-orange-500 transition-colors"
               title="Back to submission form"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
