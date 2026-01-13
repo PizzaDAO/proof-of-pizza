@@ -91,7 +91,7 @@ export function ImageUpload({
         onDragLeave={handleDragLeave}
         className={`
           relative border-2 border-dashed rounded-lg p-6 transition-colors
-          ${isDragOver ? "border-orange-500 bg-orange-50" : "border-gray-300 hover:border-gray-400"}
+          ${isDragOver ? "border-red-500 bg-red-50" : "border-gray-300 hover:border-gray-400"}
           ${preview || publicUrl ? "bg-gray-50" : "bg-white"}
         `}
       >
@@ -144,7 +144,7 @@ export function ImageUpload({
             </svg>
             <div className="mt-4">
               <label className="cursor-pointer">
-                <span className="text-orange-600 hover:text-orange-500 font-medium">
+                <span className="text-red-600 hover:text-red-500 font-medium">
                   Upload a file
                 </span>
                 <input

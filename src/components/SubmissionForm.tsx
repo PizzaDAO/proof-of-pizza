@@ -100,9 +100,14 @@ export function SubmissionForm() {
   if (form.submitted) {
     return (
       <div className="max-w-md mx-auto text-center py-12">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <img
+          src="/pizzadao-logo.png"
+          alt="PizzaDAO"
+          className="w-48 h-auto mx-auto mb-6"
+        />
+        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg
-            className="w-8 h-8 text-green-500"
+            className="w-8 h-8 text-white"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -115,10 +120,10 @@ export function SubmissionForm() {
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-white mb-2">
           Proof Submitted!
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-white/80 mb-6">
           Your Proof of Pizza has been submitted for review.
           You&apos;ll receive USDC to your wallet once approved.
         </p>
@@ -135,7 +140,7 @@ export function SubmissionForm() {
               error: null,
             })
           }
-          className="text-orange-600 hover:text-orange-500 font-medium"
+          className="text-white hover:text-white/80 font-medium underline"
         >
           Submit another
         </button>
@@ -146,15 +151,20 @@ export function SubmissionForm() {
   return (
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-6">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <img
+          src="/pizzadao-logo.png"
+          alt="PizzaDAO"
+          className="w-48 h-auto mx-auto mb-4"
+        />
+        <h1 className="text-3xl font-bold text-white mb-2">
           Proof of Pizza
         </h1>
-        <p className="text-gray-600">
+        <p className="text-white/80">
           Upload your pizza and receipt to get reimbursed in USDC
         </p>
         <a
           href="/admin"
-          className="inline-block mt-3 text-sm text-gray-500 hover:text-orange-500 transition-colors"
+          className="inline-block mt-3 text-sm text-white/60 hover:text-white transition-colors"
         >
           Admin Panel →
         </a>
@@ -185,7 +195,7 @@ export function SubmissionForm() {
           </label>
           {isAnalyzing ? (
             <div className="flex items-center space-x-2 text-gray-500">
-              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
               <span>Analyzing receipt...</span>
             </div>
           ) : (
@@ -203,7 +213,7 @@ export function SubmissionForm() {
                   }))
                 }
                 placeholder="0.00"
-                className="text-2xl font-bold w-32 border-b-2 border-gray-300 focus:border-orange-500 focus:outline-none bg-transparent"
+                className="text-2xl font-bold w-32 border-b-2 border-gray-300 focus:border-red-500 focus:outline-none bg-transparent"
               />
               <span className="text-gray-500">USD</span>
             </div>
@@ -239,7 +249,7 @@ export function SubmissionForm() {
           w-full py-3 px-4 rounded-lg font-medium transition-colors
           ${
             isFormValid && !form.isSubmitting
-              ? "bg-orange-500 text-white hover:bg-orange-600"
+              ? "bg-green-600 text-white hover:bg-green-700"
               : "bg-gray-200 text-gray-500 cursor-not-allowed"
           }
         `}
