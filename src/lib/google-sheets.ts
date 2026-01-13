@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import path from "path";
+import fs from "fs";
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const SHEET_NAME = "Sheet1";
@@ -25,10 +26,20 @@ const HEADERS = [
 ];
 
 async function getAuthClient() {
-  const credentialsPath = path.join(process.cwd(), "google-credentials.json");
+  let credentials;
+
+  // Try env var first (production)
+  if (process.env.GOOGLE_CREDENTIALS_JSON) {
+    credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+  } else {
+    // Fall back to file (local development)
+    const credentialsPath = path.join(process.cwd(), "google-credentials.json");
+    const credentialsFile = fs.readFileSync(credentialsPath, "utf-8");
+    credentials = JSON.parse(credentialsFile);
+  }
 
   const auth = new google.auth.GoogleAuth({
-    keyFile: credentialsPath,
+    credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
