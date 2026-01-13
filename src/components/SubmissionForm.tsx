@@ -146,6 +146,11 @@ export function SubmissionForm() {
   return (
     <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-6">
       <div className="text-center mb-8">
+        <img
+          src="/pizzadao-logo.png"
+          alt="PizzaDAO"
+          className="w-48 h-auto mx-auto mb-4 invert"
+        />
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Proof of Pizza
         </h1>
