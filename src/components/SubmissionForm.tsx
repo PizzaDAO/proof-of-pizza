@@ -149,7 +149,7 @@ export function SubmissionForm() {
         <img
           src="/pizzadao-logo.png"
           alt="PizzaDAO"
-          className="w-48 h-auto mx-auto mb-4 invert"
+          className="w-16 h-auto mx-auto mb-4 invert"
         />
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Proof of Pizza
