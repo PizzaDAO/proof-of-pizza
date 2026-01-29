@@ -32,6 +32,7 @@ export function SubmissionQueue() {
   const [activeTab, setActiveTab] = useState<SubmissionStatus | "ALL">("PENDING");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({});
 
   const fetchSubmissions = useCallback(async () => {
     setIsLoading(true);
@@ -78,6 +79,33 @@ export function SubmissionQueue() {
       fetchSubmissions();
     } catch (error) {
       console.error("Failed to reject:", error);
+    }
+  };
+
+  const handleUpdateAmount = async (id: string) => {
+    const newAmount = editingAmounts[id];
+    if (!newAmount) return;
+
+    const parsed = parseFloat(newAmount);
+    if (isNaN(parsed) || parsed <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    try {
+      await fetch(`/api/submissions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ finalAmount: parsed }),
+      });
+      setEditingAmounts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      fetchSubmissions();
+    } catch (error) {
+      console.error("Failed to update amount:", error);
     }
   };
 
@@ -218,7 +246,53 @@ export function SubmissionQueue() {
                     </div>
                   )}
 
-                  {(submission.status === "APPROVED" || submission.status === "PAID") && (
+                  {submission.status === "APPROVED" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <ReimburseButton
+                          submissionId={submission.id}
+                          walletAddress={submission.walletAddress}
+                          amount={parseFloat(submission.finalAmount)}
+                          status={submission.status}
+                          transactionHash={submission.transactionHash}
+                          onStatusChange={fetchSubmissions}
+                        />
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-400">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={parseFloat(submission.finalAmount).toFixed(2)}
+                            value={editingAmounts[submission.id] || ""}
+                            onChange={(e) =>
+                              setEditingAmounts((prev) => ({
+                                ...prev,
+                                [submission.id]: e.target.value,
+                              }))
+                            }
+                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                          {editingAmounts[submission.id] && (
+                            <button
+                              onClick={() => handleUpdateAmount(submission.id)}
+                              className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                            >
+                              Set
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleReject(submission.id)}
+                        className="w-full px-3 py-2 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+
+                  {submission.status === "PAID" && (
                     <ReimburseButton
                       submissionId={submission.id}
                       walletAddress={submission.walletAddress}

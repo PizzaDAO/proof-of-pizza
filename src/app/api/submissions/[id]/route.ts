@@ -11,6 +11,7 @@ const updateSubmissionSchema = z.object({
   rejectionReason: z.string().optional(),
   transactionHash: z.string().optional(),
   paidAmount: z.number().optional(),
+  finalAmount: z.number().optional(),
 });
 
 export async function GET(
@@ -68,6 +69,7 @@ export async function PATCH(
     if (data.rejectionReason) updateData.rejectionReason = data.rejectionReason;
     if (data.transactionHash) updateData.transactionHash = data.transactionHash;
     if (data.paidAmount) updateData.paidAmount = data.paidAmount;
+    if (data.finalAmount !== undefined) updateData.finalAmount = data.finalAmount;
 
     const submission = await prisma.submission.update({
       where: { id },
