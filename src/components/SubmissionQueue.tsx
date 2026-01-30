@@ -82,33 +82,6 @@ export function SubmissionQueue() {
     }
   };
 
-  const handleUpdateAmount = async (id: string) => {
-    const newAmount = editingAmounts[id];
-    if (!newAmount) return;
-
-    const parsed = parseFloat(newAmount);
-    if (isNaN(parsed) || parsed <= 0) {
-      alert("Please enter a valid amount");
-      return;
-    }
-
-    try {
-      await fetch(`/api/submissions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ finalAmount: parsed }),
-      });
-      setEditingAmounts((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      fetchSubmissions();
-    } catch (error) {
-      console.error("Failed to update amount:", error);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -252,7 +225,9 @@ export function SubmissionQueue() {
                         <ReimburseButton
                           submissionId={submission.id}
                           walletAddress={submission.walletAddress}
-                          amount={parseFloat(submission.finalAmount)}
+                          amount={editingAmounts[submission.id]
+                            ? parseFloat(editingAmounts[submission.id]) || parseFloat(submission.finalAmount)
+                            : parseFloat(submission.finalAmount)}
                           status={submission.status}
                           transactionHash={submission.transactionHash}
                           onStatusChange={fetchSubmissions}
@@ -264,7 +239,7 @@ export function SubmissionQueue() {
                             step="0.01"
                             min="0"
                             placeholder={parseFloat(submission.finalAmount).toFixed(2)}
-                            value={editingAmounts[submission.id] || ""}
+                            value={editingAmounts[submission.id] ?? ""}
                             onChange={(e) =>
                               setEditingAmounts((prev) => ({
                                 ...prev,
@@ -273,14 +248,6 @@ export function SubmissionQueue() {
                             }
                             className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
                           />
-                          {editingAmounts[submission.id] && (
-                            <button
-                              onClick={() => handleUpdateAmount(submission.id)}
-                              className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                            >
-                              Set
-                            </button>
-                          )}
                         </div>
                       </div>
                       <button
