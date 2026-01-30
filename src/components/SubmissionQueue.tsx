@@ -82,6 +82,20 @@ export function SubmissionQueue() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this submission? This cannot be undone.")) {
+      return;
+    }
+    try {
+      await fetch(`/api/submissions/${id}`, {
+        method: "DELETE",
+      });
+      fetchSubmissions();
+    } catch (error) {
+      console.error("Failed to delete:", error);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
@@ -269,6 +283,14 @@ export function SubmissionQueue() {
                       onStatusChange={fetchSubmissions}
                     />
                   )}
+
+                  {/* Delete button - always visible */}
+                  <button
+                    onClick={() => handleDelete(submission.id)}
+                    className="w-full mt-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

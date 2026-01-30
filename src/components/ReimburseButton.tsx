@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { base } from "wagmi/chains";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { getBaseScanUrl } from "@/lib/constants";
@@ -24,8 +25,13 @@ export function ReimburseButton({
   onStatusChange,
 }: ReimburseButtonProps) {
   const { isConnected, isConnecting } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isOnBase = chainId === base.id;
+  const isOnEthereum = chainId === 1;
 
   const { transfer, hash, isPending, isConfirming, isConfirmed } = useUsdcTransfer({
     onSuccess: async (txHash) => {
@@ -161,6 +167,25 @@ export function ReimburseButton({
         </button>
       )}
     </ConnectButton.Custom>;
+  }
+
+  // Wrong network warning
+  if (!isOnBase) {
+    return (
+      <div>
+        {isOnEthereum && (
+          <p className="mb-2 text-sm text-amber-600 font-medium">
+            ⚠️ You're on Ethereum mainnet. Payments should be on Base.
+          </p>
+        )}
+        <button
+          onClick={() => switchChain({ chainId: base.id })}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+        >
+          Switch to Base
+        </button>
+      </div>
+    );
   }
 
   // Ready to reimburse

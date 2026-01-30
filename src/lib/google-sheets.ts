@@ -155,6 +155,16 @@ export async function updateSubmissionInSheet(
     paidAt?: Date | string | null;
     reviewedBy?: string | null;
     rejectionReason?: string | null;
+  },
+  fullSubmission?: {
+    walletAddress: string;
+    ensName?: string | null;
+    extractedAmount: number | string;
+    finalAmount: number | string;
+    currency: string;
+    receiptPhotoUrl: string;
+    pizzaPhotoUrl: string;
+    createdAt: Date | string;
   }
 ) {
   if (!SPREADSHEET_ID) {
@@ -175,7 +185,41 @@ export async function updateSubmissionInSheet(
     const rowIndex = rows.findIndex((row) => row[0] === submissionId);
 
     if (rowIndex === -1) {
-      console.warn(`Submission ${submissionId} not found in sheet`);
+      // Row not found - add it if we have full submission data
+      if (fullSubmission) {
+        console.log(`Submission ${submissionId} not in sheet, adding it now`);
+        const row = [
+          submissionId,
+          new Date(fullSubmission.createdAt).toISOString(),
+          fullSubmission.walletAddress,
+          fullSubmission.ensName || "",
+          fullSubmission.extractedAmount,
+          fullSubmission.currency,
+          fullSubmission.finalAmount,
+          1, // exchange rate
+          fullSubmission.receiptPhotoUrl,
+          fullSubmission.pizzaPhotoUrl,
+          updates.status || "PENDING",
+          updates.transactionHash || "",
+          updates.paidAmount || "",
+          updates.paidAt ? new Date(updates.paidAt).toISOString() : "",
+          updates.reviewedBy || "",
+          updates.rejectionReason || "",
+        ];
+
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET_NAME}!A:P`,
+          valueInputOption: "RAW",
+          insertDataOption: "INSERT_ROWS",
+          requestBody: {
+            values: [row],
+          },
+        });
+        console.log(`Added missing submission ${submissionId} to Google Sheets`);
+        return;
+      }
+      console.warn(`Submission ${submissionId} not found in sheet and no full data provided`);
       return;
     }
 
@@ -218,5 +262,67 @@ export async function updateSubmissionInSheet(
     console.log(`Updated submission ${submissionId} in Google Sheets`);
   } catch (error) {
     console.error("Failed to update submission in sheet:", error);
+  }
+}
+
+export async function deleteSubmissionFromSheet(submissionId: string) {
+  if (!SPREADSHEET_ID) {
+    console.warn("GOOGLE_SHEETS_ID not set, skipping sheet deletion");
+    return;
+  }
+
+  try {
+    const sheets = await getSheets();
+
+    // Find the row with this submission ID
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:A`,
+    });
+
+    const rows = response.data.values || [];
+    const rowIndex = rows.findIndex((row) => row[0] === submissionId);
+
+    if (rowIndex === -1) {
+      console.warn(`Submission ${submissionId} not found in sheet`);
+      return;
+    }
+
+    // Get the sheet ID
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+
+    const sheet = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === SHEET_NAME
+    );
+
+    if (!sheet?.properties?.sheetId) {
+      console.error("Could not find sheet ID");
+      return;
+    }
+
+    // Delete the row
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: SPREADSHEET_ID,
+      requestBody: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: sheet.properties.sheetId,
+                dimension: "ROWS",
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    console.log(`Deleted submission ${submissionId} from Google Sheets`);
+  } catch (error) {
+    console.error("Failed to delete submission from sheet:", error);
   }
 }

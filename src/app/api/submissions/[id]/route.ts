@@ -77,14 +77,28 @@ export async function PATCH(
     });
 
     // Update Google Sheets (async, don't wait)
-    updateSubmissionInSheet(id, {
-      status: data.status,
-      transactionHash: data.transactionHash,
-      paidAmount: data.paidAmount,
-      paidAt: submission.paidAt,
-      reviewedBy: data.reviewedBy,
-      rejectionReason: data.rejectionReason,
-    }).catch(console.error);
+    // Pass full submission data so it can be added if missing from sheet
+    updateSubmissionInSheet(
+      id,
+      {
+        status: data.status,
+        transactionHash: data.transactionHash,
+        paidAmount: data.paidAmount,
+        paidAt: submission.paidAt,
+        reviewedBy: data.reviewedBy,
+        rejectionReason: data.rejectionReason,
+      },
+      {
+        walletAddress: submission.walletAddress,
+        ensName: submission.ensName,
+        extractedAmount: Number(submission.extractedAmount),
+        finalAmount: Number(submission.finalAmount),
+        currency: submission.currency,
+        receiptPhotoUrl: submission.receiptPhotoUrl,
+        pizzaPhotoUrl: submission.pizzaPhotoUrl,
+        createdAt: submission.createdAt,
+      }
+    ).catch(console.error);
 
     return NextResponse.json(submission);
   } catch (error) {
@@ -98,6 +112,43 @@ export async function PATCH(
     console.error("Failed to update submission:", error);
     return NextResponse.json(
       { error: "Failed to update submission" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // Check if submission exists
+    const submission = await prisma.submission.findUnique({
+      where: { id },
+    });
+
+    if (!submission) {
+      return NextResponse.json(
+        { error: "Submission not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete from database
+    await prisma.submission.delete({
+      where: { id },
+    });
+
+    // Mark as DELETED in Google Sheets (async, don't wait)
+    updateSubmissionInSheet(id, { status: "DELETED" }).catch(console.error);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete submission:", error);
+    return NextResponse.json(
+      { error: "Failed to delete submission" },
       { status: 500 }
     );
   }
