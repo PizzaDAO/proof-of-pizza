@@ -1,10 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
-import { base } from "wagmi/chains";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { getBaseScanUrl } from "@/lib/constants";
 
 interface ReimburseButtonProps {
@@ -16,6 +12,8 @@ interface ReimburseButtonProps {
   onStatusChange: () => void;
 }
 
+const MAX_AMOUNT = 50;
+
 export function ReimburseButton({
   submissionId,
   walletAddress,
@@ -24,49 +22,67 @@ export function ReimburseButton({
   transactionHash,
   onStatusChange,
 }: ReimburseButtonProps) {
-  const { isConnected, isConnecting } = useAccount();
-  const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successHash, setSuccessHash] = useState<string | null>(null);
 
-  const isOnBase = chainId === base.id;
-  const isOnEthereum = chainId === 1;
+  const handlePay = async () => {
+    setError(null);
+    setIsLoading(true);
 
-  const { transfer, hash, isPending, isConfirming, isConfirmed } = useUsdcTransfer({
-    onSuccess: async (txHash) => {
-      // Update submission in database
-      setIsUpdating(true);
-      try {
-        await fetch(`/api/submissions/${submissionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "PAID",
-            transactionHash: txHash,
-            paidAmount: amount,
-          }),
-        });
-        onStatusChange();
-      } catch (err) {
-        setError("Failed to update submission status");
-        console.error(err);
-      } finally {
-        setIsUpdating(false);
+    try {
+      const adminPassword = localStorage.getItem("admin_token");
+      if (!adminPassword) {
+        setError("Session expired. Please log in again.");
+        return;
       }
-    },
-    onError: (err) => {
-      // Simplify common error messages
-      const msg = err.message || String(err);
-      if (msg.includes("User rejected") || msg.includes("User denied")) {
-        setError("User rejected the request.");
-      } else if (msg.includes("insufficient funds")) {
-        setError("Insufficient funds for transfer.");
-      } else {
-        setError(msg.split("\n")[0]); // Just show first line
+
+      const response = await fetch("/api/admin/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId,
+          adminPassword,
+          amount,
+          recipientAddress: walletAddress,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        switch (data.code) {
+          case "LIMIT_EXCEEDED":
+            setError(`Amount exceeds $${MAX_AMOUNT} limit`);
+            break;
+          case "UNAUTHORIZED":
+            setError("Session expired. Please log in again.");
+            break;
+          case "INSUFFICIENT_BALANCE":
+            setError("Server wallet needs funding. Contact admin.");
+            break;
+          case "ALREADY_PAID":
+            setError("Already paid");
+            onStatusChange();
+            break;
+          case "TX_FAILED":
+            setError(data.error || "Transaction failed");
+            break;
+          default:
+            setError(data.error || "Payment failed");
+        }
+        return;
       }
-    },
-  });
+
+      setSuccessHash(data.transactionHash);
+      onStatusChange();
+    } catch (err) {
+      console.error("Payment error:", err);
+      setError("Network error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Already paid - show link
   if (status === "PAID" && transactionHash) {
@@ -77,11 +93,26 @@ export function ReimburseButton({
         rel="noopener noreferrer"
         className="inline-flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
         </svg>
         <span>Paid</span>
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -93,20 +124,35 @@ export function ReimburseButton({
     );
   }
 
-  // Transaction just confirmed
-  if (isConfirmed && hash) {
+  // Just completed payment - show success
+  if (successHash) {
     return (
       <a
-        href={getBaseScanUrl(hash)}
+        href={getBaseScanUrl(successHash)}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 13l4 4L19 7"
+          />
         </svg>
         <span>Paid</span>
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -118,81 +164,41 @@ export function ReimburseButton({
     );
   }
 
-  // Confirming transaction
-  if (isConfirming || isUpdating) {
-    return (
-      <button
-        disabled
-        className="inline-flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg"
-      >
-        <div className="w-4 h-4 border-2 border-yellow-700 border-t-transparent rounded-full animate-spin" />
-        <span>Confirming...</span>
-      </button>
-    );
-  }
-
-  // Pending wallet signature
-  if (isPending) {
+  // Processing payment
+  if (isLoading) {
     return (
       <button
         disabled
         className="inline-flex items-center space-x-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-lg"
       >
         <div className="w-4 h-4 border-2 border-orange-700 border-t-transparent rounded-full animate-spin" />
-        <span>Sign in wallet...</span>
+        <span>Processing...</span>
       </button>
     );
   }
 
-  // Not connected
-  if (isConnecting) {
-    return (
-      <button
-        disabled
-        className="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg"
-      >
-        Loading...
-      </button>
-    );
-  }
-
-  if (!isConnected) {
-    return <ConnectButton.Custom>
-      {({ openConnectModal }) => (
-        <button
-          onClick={openConnectModal}
-          className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-        >
-          Connect Wallet
-        </button>
-      )}
-    </ConnectButton.Custom>;
-  }
-
-  // Wrong network warning
-  if (!isOnBase) {
+  // Amount over limit warning
+  if (amount > MAX_AMOUNT) {
     return (
       <div>
-        {isOnEthereum && (
-          <p className="mb-2 text-sm text-amber-600 font-medium">
-            ⚠️ You're on Ethereum mainnet. Payments should be on Base.
-          </p>
-        )}
         <button
-          onClick={() => switchChain({ chainId: base.id })}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          disabled
+          className="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
         >
-          Switch to Base
+          Reimburse ${amount.toFixed(2)}
         </button>
+        <p className="mt-1 text-xs text-amber-600">
+          Exceeds ${MAX_AMOUNT} limit. Requires manual payment.
+        </p>
       </div>
     );
   }
 
-  // Ready to reimburse
+  // Ready to pay
   return (
     <div>
       <button
-        onClick={() => transfer(walletAddress.trim(), amount)}
+        onClick={handlePay}
         className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
       >
         Reimburse ${amount.toFixed(2)}

@@ -38,6 +38,41 @@ function recordAttempt(ip: string, success: boolean): void {
   attempts.set(ip, record);
 }
 
+// Parse admin credentials from env var
+function getAdminCredentials(): Record<string, string> {
+  const credentials = process.env.ADMIN_CREDENTIALS;
+  if (!credentials) {
+    // Fall back to single ADMIN_PASSWORD for backwards compatibility
+    const singlePassword = process.env.ADMIN_PASSWORD;
+    if (singlePassword) {
+      return { admin: singlePassword };
+    }
+    return {};
+  }
+  try {
+    return JSON.parse(credentials);
+  } catch {
+    console.error("Failed to parse ADMIN_CREDENTIALS");
+    return {};
+  }
+}
+
+function verifyPassword(password: string): { valid: boolean; adminName?: string } {
+  const credentials = getAdminCredentials();
+
+  if (Object.keys(credentials).length === 0) {
+    console.error("No admin credentials configured");
+    return { valid: false };
+  }
+
+  for (const [name, pwd] of Object.entries(credentials)) {
+    if (pwd === password) {
+      return { valid: true, adminName: name };
+    }
+  }
+  return { valid: false };
+}
+
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
 
@@ -52,19 +87,11 @@ export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
 
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const { valid, adminName } = verifyPassword(password);
 
-    if (!adminPassword) {
-      console.error("ADMIN_PASSWORD env var not set");
-      return NextResponse.json(
-        { error: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-
-    if (password === adminPassword) {
+    if (valid && adminName) {
       recordAttempt(ip, true);
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, adminName });
     }
 
     recordAttempt(ip, false);

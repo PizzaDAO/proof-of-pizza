@@ -1,24 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
-import { AdminProviders } from "@/providers/AdminProviders";
 import { AdminLogin } from "@/components/AdminLogin";
 
-function AdminContent() {
+export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [adminName, setAdminName] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   useEffect(() => {
     const authState = localStorage.getItem("admin_authenticated");
+    const storedName = localStorage.getItem("admin_name");
     setIsAuthenticated(authState === "true");
+    setAdminName(storedName);
   }, []);
+
+  const handleLogin = (name: string) => {
+    setAdminName(name);
+    setIsAuthenticated(true);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("admin_authenticated");
     localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_name");
     setIsAuthenticated(false);
+    setAdminName(null);
   };
 
   const handleSyncSheets = async () => {
@@ -53,7 +61,7 @@ function AdminContent() {
   }
 
   if (!isAuthenticated) {
-    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+    return <AdminLogin onLogin={handleLogin} />;
   }
 
   return (
@@ -67,15 +75,27 @@ function AdminContent() {
               className="text-gray-400 hover:text-orange-500 transition-colors"
               title="Back to submission form"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
               </svg>
             </a>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
                 Proof of Pizza Admin
               </h1>
-              <p className="text-sm text-gray-500">Review and process reimbursements</p>
+              <p className="text-sm text-gray-500">
+                Review and process reimbursements
+              </p>
             </div>
           </div>
 
@@ -90,13 +110,17 @@ function AdminContent() {
             >
               Sync Sheets
             </button>
+            {adminName && (
+              <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                {adminName}
+              </span>
+            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Logout
             </button>
-            <ConnectButton />
           </div>
         </div>
       </header>
@@ -106,13 +130,5 @@ function AdminContent() {
         <SubmissionQueue />
       </main>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <AdminProviders>
-      <AdminContent />
-    </AdminProviders>
   );
 }
