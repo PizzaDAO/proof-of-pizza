@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { base } from "wagmi/chains";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { ReimburseButton } from "./ReimburseButton";
 
 type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
@@ -34,6 +38,36 @@ export function SubmissionQueue() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({});
   const [adminWallet, setAdminWallet] = useState<{ balance: number; address: string } | null>(null);
+  const [fundAmount, setFundAmount] = useState("");
+  const [showFundForm, setShowFundForm] = useState(false);
+  const [fundError, setFundError] = useState<string | null>(null);
+
+  // Wallet connection for funding
+  const { isConnected } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const isOnBase = chainId === base.id;
+
+  const { transfer: fundTransfer, isPending: isFundPending, isConfirming: isFundConfirming, isConfirmed: isFundConfirmed } = useUsdcTransfer({
+    onSuccess: () => {
+      setFundAmount("");
+      setShowFundForm(false);
+      // Refresh balance after a short delay
+      setTimeout(() => {
+        fetch("/api/admin/wallet-balance")
+          .then((res) => res.json())
+          .then((data) => setAdminWallet({ balance: data.balance ?? 0, address: data.address ?? "" }));
+      }, 2000);
+    },
+    onError: (err) => {
+      const msg = err.message || String(err);
+      if (msg.includes("User rejected")) {
+        setFundError("Transaction cancelled");
+      } else {
+        setFundError(msg.split("\n")[0]);
+      }
+    },
+  });
 
   // Fetch admin wallet balance
   useEffect(() => {
@@ -133,40 +167,108 @@ export function SubmissionQueue() {
     <div>
       {/* Admin Wallet Balance */}
       {adminWallet && (
-        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
-          <div className="text-sm flex items-center gap-2">
-            <span className="text-gray-600">Admin Wallet: </span>
-            {adminWallet.address ? (
-              <>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(adminWallet.address);
-                    alert("Address copied!");
-                  }}
-                  className="font-mono text-xs text-gray-500 hover:text-gray-700 hover:underline"
-                  title="Click to copy"
-                >
-                  {`${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}`}
-                </button>
-                <a
-                  href={`https://basescan.org/address/${adminWallet.address}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:text-blue-700"
-                  title="View on BaseScan"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </>
-            ) : (
-              <span className="text-gray-500">Not configured</span>
-            )}
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-sm flex items-center gap-2">
+              <span className="text-gray-600">Admin Wallet: </span>
+              {adminWallet.address ? (
+                <>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(adminWallet.address);
+                      alert("Address copied!");
+                    }}
+                    className="font-mono text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                    title="Click to copy"
+                  >
+                    {`${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}`}
+                  </button>
+                  <a
+                    href={`https://basescan.org/address/${adminWallet.address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-700"
+                    title="View on BaseScan"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </>
+              ) : (
+                <span className="text-gray-500">Not configured</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-lg font-bold text-orange-600">
+                ${adminWallet.balance.toFixed(2)} <span className="text-sm font-normal text-gray-500">USDC</span>
+              </div>
+              <button
+                onClick={() => setShowFundForm(!showFundForm)}
+                className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+              >
+                {showFundForm ? "Cancel" : "Fund"}
+              </button>
+            </div>
           </div>
-          <div className="text-lg font-bold text-orange-600">
-            ${adminWallet.balance.toFixed(2)} <span className="text-sm font-normal text-gray-500">USDC (Base)</span>
-          </div>
+
+          {/* Fund Form */}
+          {showFundForm && adminWallet.address && (
+            <div className="mt-3 pt-3 border-t border-orange-200">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Amount"
+                  value={fundAmount}
+                  onChange={(e) => setFundAmount(e.target.value)}
+                  className="w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                {!isConnected ? (
+                  <ConnectButton.Custom>
+                    {({ openConnectModal }) => (
+                      <button
+                        onClick={openConnectModal}
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      >
+                        Connect Wallet
+                      </button>
+                    )}
+                  </ConnectButton.Custom>
+                ) : !isOnBase ? (
+                  <button
+                    onClick={() => switchChain({ chainId: base.id })}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  >
+                    Switch to Base
+                  </button>
+                ) : isFundPending || isFundConfirming ? (
+                  <button disabled className="px-3 py-1 text-sm bg-gray-300 text-gray-500 rounded flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                    {isFundConfirming ? "Confirming..." : "Sign..."}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      const amount = parseFloat(fundAmount);
+                      if (amount > 0) {
+                        setFundError(null);
+                        fundTransfer(adminWallet.address, amount);
+                      }
+                    }}
+                    disabled={!fundAmount || parseFloat(fundAmount) <= 0}
+                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:text-gray-500"
+                  >
+                    Send USDC
+                  </button>
+                )}
+              </div>
+              {fundError && <p className="mt-1 text-xs text-red-600">{fundError}</p>}
+              {isFundConfirmed && <p className="mt-1 text-xs text-green-600">Funded successfully!</p>}
+            </div>
+          )}
         </div>
       )}
 
