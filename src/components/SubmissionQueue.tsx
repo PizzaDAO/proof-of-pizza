@@ -219,7 +219,7 @@ export function SubmissionQueue() {
                 <span className="text-gray-500">$</span>
                 <input
                   type="number"
-                  step="250"
+                  step="100"
                   min="0"
                   placeholder="Amount"
                   value={fundAmount}
