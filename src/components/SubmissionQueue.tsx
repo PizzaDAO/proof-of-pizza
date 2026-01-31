@@ -33,6 +33,15 @@ export function SubmissionQueue() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({});
+  const [adminWallet, setAdminWallet] = useState<{ balance: number; address: string } | null>(null);
+
+  // Fetch admin wallet balance
+  useEffect(() => {
+    fetch("/api/admin/wallet-balance")
+      .then((res) => res.json())
+      .then((data) => setAdminWallet({ balance: data.balance ?? 0, address: data.address ?? "" }))
+      .catch(() => setAdminWallet({ balance: 0, address: "" }));
+  }, []);
 
   const fetchSubmissions = useCallback(async () => {
     setIsLoading(true);
@@ -122,6 +131,21 @@ export function SubmissionQueue() {
 
   return (
     <div>
+      {/* Admin Wallet Balance */}
+      {adminWallet && (
+        <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
+          <div className="text-sm">
+            <span className="text-gray-600">Admin Wallet: </span>
+            <span className="font-mono text-xs text-gray-500">
+              {adminWallet.address ? `${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}` : "Not configured"}
+            </span>
+          </div>
+          <div className="text-lg font-bold text-orange-600">
+            ${adminWallet.balance.toFixed(2)} USDC
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="flex space-x-1 border-b border-gray-200 mb-6">
         {STATUS_TABS.map((tab) => (
@@ -235,18 +259,8 @@ export function SubmissionQueue() {
 
                   {submission.status === "APPROVED" && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <ReimburseButton
-                          submissionId={submission.id}
-                          walletAddress={submission.walletAddress}
-                          amount={editingAmounts[submission.id]
-                            ? parseFloat(editingAmounts[submission.id]) || parseFloat(submission.finalAmount)
-                            : parseFloat(submission.finalAmount)}
-                          status={submission.status}
-                          transactionHash={submission.transactionHash}
-                          onStatusChange={fetchSubmissions}
-                        />
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-start gap-2">
+                        <div className="flex items-center gap-1 pt-2">
                           <span className="text-gray-400">$</span>
                           <input
                             type="number"
@@ -261,6 +275,18 @@ export function SubmissionQueue() {
                               }))
                             }
                             className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <ReimburseButton
+                            submissionId={submission.id}
+                            walletAddress={submission.walletAddress}
+                            amount={editingAmounts[submission.id]
+                              ? parseFloat(editingAmounts[submission.id]) || parseFloat(submission.finalAmount)
+                              : parseFloat(submission.finalAmount)}
+                            status={submission.status}
+                            transactionHash={submission.transactionHash}
+                            onStatusChange={fetchSubmissions}
                           />
                         </div>
                       </div>
