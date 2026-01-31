@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 // Simple in-memory rate limiting (resets on serverless cold start)
 const attempts = new Map<string, { count: number; lastAttempt: number }>();
@@ -57,20 +59,41 @@ function getAdminCredentials(): Record<string, string> {
   }
 }
 
-function verifyPassword(password: string): { valid: boolean; adminName?: string } {
+function verifyEnvPassword(password: string): { valid: boolean; adminName?: string; isSuperAdmin?: boolean } {
   const credentials = getAdminCredentials();
-
-  if (Object.keys(credentials).length === 0) {
-    console.error("No admin credentials configured");
-    return { valid: false };
-  }
 
   for (const [name, pwd] of Object.entries(credentials)) {
     if (pwd === password) {
-      return { valid: true, adminName: name };
+      return { valid: true, adminName: name, isSuperAdmin: true };
     }
   }
   return { valid: false };
+}
+
+async function verifyDbPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
+  // Get all active admins from database
+  const admins = await prisma.admin.findMany({
+    where: { isActive: true },
+  });
+
+  for (const admin of admins) {
+    const match = await bcrypt.compare(password, admin.passwordHash);
+    if (match) {
+      return { valid: true, adminName: admin.name, isSuperAdmin: admin.isSuperAdmin };
+    }
+  }
+  return { valid: false };
+}
+
+async function verifyPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
+  // First check env var credentials (superadmins)
+  const envResult = verifyEnvPassword(password);
+  if (envResult.valid) {
+    return envResult;
+  }
+
+  // Then check database admins
+  return verifyDbPassword(password);
 }
 
 export async function POST(request: NextRequest) {
@@ -87,11 +110,11 @@ export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
 
-    const { valid, adminName } = verifyPassword(password);
+    const { valid, adminName, isSuperAdmin } = await verifyPassword(password);
 
     if (valid && adminName) {
       recordAttempt(ip, true);
-      return NextResponse.json({ success: true, adminName });
+      return NextResponse.json({ success: true, adminName, isSuperAdmin: !!isSuperAdmin });
     }
 
     recordAttempt(ip, false);

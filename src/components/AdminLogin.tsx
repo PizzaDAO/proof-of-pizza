@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 interface AdminLoginProps {
-  onLogin: (adminName: string) => void;
+  onLogin: (adminName: string, isSuperAdmin?: boolean) => void;
 }
 
 export function AdminLogin({ onLogin }: AdminLoginProps) {
@@ -29,7 +29,10 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
         localStorage.setItem("admin_authenticated", "true");
         localStorage.setItem("admin_token", password);
         localStorage.setItem("admin_name", data.adminName);
-        onLogin(data.adminName);
+        if (data.isSuperAdmin) {
+          localStorage.setItem("admin_is_super", "true");
+        }
+        onLogin(data.adminName, data.isSuperAdmin);
       } else {
         setError(data.error || "Incorrect password");
       }
