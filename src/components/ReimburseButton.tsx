@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getBaseScanUrl } from "@/lib/constants";
 
 interface ReimburseButtonProps {
@@ -25,6 +25,16 @@ export function ReimburseButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successHash, setSuccessHash] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/wallet-balance")
+      .then((res) => res.json())
+      .then((data) => setWalletBalance(data.balance ?? 0))
+      .catch(() => setWalletBalance(0));
+  }, []);
+
+  const canPayFromAdmin = walletBalance !== null && walletBalance >= amount && amount <= MAX_AMOUNT;
 
   const handlePay = async () => {
     setError(null);
@@ -177,31 +187,35 @@ export function ReimburseButton({
     );
   }
 
-  // Amount over limit warning
-  if (amount > MAX_AMOUNT) {
+  // Amount over limit or insufficient balance - manual payment needed
+  if (amount > MAX_AMOUNT || !canPayFromAdmin) {
+    const reason = amount > MAX_AMOUNT
+      ? `Exceeds $${MAX_AMOUNT} limit.`
+      : walletBalance !== null && walletBalance < amount
+        ? `Wallet has $${walletBalance.toFixed(2)}.`
+        : "";
+
     return (
       <div>
         <button
           disabled
           className="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
         >
-          Reimburse ${amount.toFixed(2)}
+          Pay With Wallet ${amount.toFixed(2)}
         </button>
-        <p className="mt-1 text-xs text-amber-600">
-          Exceeds ${MAX_AMOUNT} limit. Requires manual payment.
-        </p>
+        {reason && <p className="mt-1 text-xs text-amber-600">{reason} Requires manual payment.</p>}
       </div>
     );
   }
 
-  // Ready to pay
+  // Ready to pay from admin wallet
   return (
     <div>
       <button
         onClick={handlePay}
         className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
       >
-        Reimburse ${amount.toFixed(2)}
+        Pay from Admin ${amount.toFixed(2)}
       </button>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
