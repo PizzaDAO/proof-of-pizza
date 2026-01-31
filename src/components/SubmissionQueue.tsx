@@ -134,14 +134,38 @@ export function SubmissionQueue() {
       {/* Admin Wallet Balance */}
       {adminWallet && (
         <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
-          <div className="text-sm">
+          <div className="text-sm flex items-center gap-2">
             <span className="text-gray-600">Admin Wallet: </span>
-            <span className="font-mono text-xs text-gray-500">
-              {adminWallet.address ? `${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}` : "Not configured"}
-            </span>
+            {adminWallet.address ? (
+              <>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(adminWallet.address);
+                    alert("Address copied!");
+                  }}
+                  className="font-mono text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                  title="Click to copy"
+                >
+                  {`${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}`}
+                </button>
+                <a
+                  href={`https://basescan.org/address/${adminWallet.address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:text-blue-700"
+                  title="View on BaseScan"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </>
+            ) : (
+              <span className="text-gray-500">Not configured</span>
+            )}
           </div>
           <div className="text-lg font-bold text-orange-600">
-            ${adminWallet.balance.toFixed(2)} USDC
+            ${adminWallet.balance.toFixed(2)} <span className="text-sm font-normal text-gray-500">USDC (Base)</span>
           </div>
         </div>
       )}
