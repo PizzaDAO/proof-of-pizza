@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 // Simple in-memory rate limiting (resets on serverless cold start)
 const attempts = new Map<string, { count: number; lastAttempt: number }>();
@@ -38,6 +40,62 @@ function recordAttempt(ip: string, success: boolean): void {
   attempts.set(ip, record);
 }
 
+// Parse admin credentials from env var
+function getAdminCredentials(): Record<string, string> {
+  const credentials = process.env.ADMIN_CREDENTIALS;
+  if (!credentials) {
+    // Fall back to single ADMIN_PASSWORD for backwards compatibility
+    const singlePassword = process.env.ADMIN_PASSWORD;
+    if (singlePassword) {
+      return { admin: singlePassword };
+    }
+    return {};
+  }
+  try {
+    return JSON.parse(credentials);
+  } catch {
+    console.error("Failed to parse ADMIN_CREDENTIALS");
+    return {};
+  }
+}
+
+function verifyEnvPassword(password: string): { valid: boolean; adminName?: string; isSuperAdmin?: boolean } {
+  const credentials = getAdminCredentials();
+
+  for (const [name, pwd] of Object.entries(credentials)) {
+    if (pwd === password) {
+      return { valid: true, adminName: name, isSuperAdmin: true };
+    }
+  }
+  return { valid: false };
+}
+
+async function verifyDbPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
+  // Get all active admins from database
+  const admins = await prisma.admin.findMany({
+    where: { isActive: true },
+  });
+
+  for (const admin of admins) {
+    const match = await bcrypt.compare(password, admin.passwordHash);
+    if (match) {
+      return { valid: true, adminName: admin.name, isSuperAdmin: admin.isSuperAdmin };
+    }
+  }
+  return { valid: false };
+}
+
+async function verifyPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
+  // First check env var credentials (superadmins)
+  const envResult = verifyEnvPassword(password);
+  if (envResult.valid) {
+    return envResult;
+  }
+
+  // Then check database admins
+  return verifyDbPassword(password);
+}
+
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
 
@@ -52,19 +110,11 @@ export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json();
 
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    const { valid, adminName, isSuperAdmin } = await verifyPassword(password);
 
-    if (!adminPassword) {
-      console.error("ADMIN_PASSWORD env var not set");
-      return NextResponse.json(
-        { error: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-
-    if (password === adminPassword) {
+    if (valid && adminName) {
       recordAttempt(ip, true);
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true, adminName, isSuperAdmin: !!isSuperAdmin });
     }
 
     recordAttempt(ip, false);

@@ -1,24 +1,44 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
-import { AdminProviders } from "@/providers/AdminProviders";
 import { AdminLogin } from "@/components/AdminLogin";
+import { AdminManager } from "@/components/AdminManager";
 
-function AdminContent() {
+export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [adminName, setAdminName] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [showAdminManager, setShowAdminManager] = useState(false);
 
   useEffect(() => {
     const authState = localStorage.getItem("admin_authenticated");
+    const storedName = localStorage.getItem("admin_name");
+    const storedSuperAdmin = localStorage.getItem("admin_is_super");
     setIsAuthenticated(authState === "true");
+    setAdminName(storedName);
+    setIsSuperAdmin(storedSuperAdmin === "true");
   }, []);
+
+  const handleLogin = (name: string, superAdmin?: boolean) => {
+    setAdminName(name);
+    setIsSuperAdmin(!!superAdmin);
+    setIsAuthenticated(true);
+    if (superAdmin) {
+      localStorage.setItem("admin_is_super", "true");
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("admin_authenticated");
     localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_name");
+    localStorage.removeItem("admin_is_super");
     setIsAuthenticated(false);
+    setAdminName(null);
+    setIsSuperAdmin(false);
+    setShowAdminManager(false);
   };
 
   const handleSyncSheets = async () => {
@@ -53,7 +73,7 @@ function AdminContent() {
   }
 
   if (!isAuthenticated) {
-    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+    return <AdminLogin onLogin={handleLogin} />;
   }
 
   return (
@@ -67,15 +87,27 @@ function AdminContent() {
               className="text-gray-400 hover:text-orange-500 transition-colors"
               title="Back to submission form"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
               </svg>
             </a>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
                 Proof of Pizza Admin
               </h1>
-              <p className="text-sm text-gray-500">Review and process reimbursements</p>
+              <p className="text-sm text-gray-500">
+                Review and process reimbursements
+              </p>
             </div>
           </div>
 
@@ -90,29 +122,47 @@ function AdminContent() {
             >
               Sync Sheets
             </button>
+            {isSuperAdmin && (
+              <button
+                onClick={() => setShowAdminManager(!showAdminManager)}
+                className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                  showAdminManager
+                    ? "bg-purple-100 text-purple-700"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
+              >
+                Manage Admins
+              </button>
+            )}
+            {adminName && (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                isSuperAdmin ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700"
+              }`}>
+                {adminName}
+                {isSuperAdmin && " ★"}
+              </span>
+            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Logout
             </button>
-            <ConnectButton />
           </div>
         </div>
       </header>
+
+      {/* Admin Manager Panel */}
+      {showAdminManager && isSuperAdmin && (
+        <div className="max-w-7xl mx-auto px-4 pt-6">
+          <AdminManager />
+        </div>
+      )}
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         <SubmissionQueue />
       </main>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  return (
-    <AdminProviders>
-      <AdminContent />
-    </AdminProviders>
   );
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 interface AdminLoginProps {
-  onLogin: () => void;
+  onLogin: (adminName: string, isSuperAdmin?: boolean) => void;
 }
 
 export function AdminLogin({ onLogin }: AdminLoginProps) {
@@ -23,12 +23,18 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
         body: JSON.stringify({ password }),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.adminName) {
         localStorage.setItem("admin_authenticated", "true");
         localStorage.setItem("admin_token", password);
-        onLogin();
+        localStorage.setItem("admin_name", data.adminName);
+        if (data.isSuperAdmin) {
+          localStorage.setItem("admin_is_super", "true");
+        }
+        onLogin(data.adminName, data.isSuperAdmin);
       } else {
-        setError("Incorrect password");
+        setError(data.error || "Incorrect password");
       }
     } catch {
       setError("Failed to verify password");
@@ -44,7 +50,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
           Admin Access
         </h1>
         <p className="text-gray-500 text-sm text-center mb-6">
-          Enter the admin password to continue
+          Enter your admin password to continue
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
