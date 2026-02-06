@@ -170,7 +170,7 @@ export function SubmissionQueue() {
         <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="text-sm flex items-center gap-2">
-              <span className="text-gray-600">Admin Wallet: </span>
+              <span className="text-gray-800">Admin Wallet: </span>
               {adminWallet.address ? (
                 <>
                   <button
@@ -178,7 +178,7 @@ export function SubmissionQueue() {
                       navigator.clipboard.writeText(adminWallet.address);
                       alert("Address copied!");
                     }}
-                    className="font-mono text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                    className="font-mono text-xs text-gray-700 hover:text-gray-900 hover:underline"
                     title="Click to copy"
                   >
                     {`${adminWallet.address.slice(0, 6)}...${adminWallet.address.slice(-4)}`}
@@ -196,12 +196,12 @@ export function SubmissionQueue() {
                   </a>
                 </>
               ) : (
-                <span className="text-gray-500">Not configured</span>
+                <span className="text-gray-700">Not configured</span>
               )}
             </div>
             <div className="flex items-center gap-3">
               <div className="text-lg font-bold text-orange-600">
-                ${adminWallet.balance.toFixed(2)} <span className="text-sm font-normal text-gray-500">USDC</span>
+                ${adminWallet.balance.toFixed(2)} <span className="text-sm font-normal text-gray-700">USDC</span>
               </div>
               <button
                 onClick={() => setShowFundForm(!showFundForm)}
@@ -216,7 +216,7 @@ export function SubmissionQueue() {
           {showFundForm && adminWallet.address && (
             <div className="mt-3 pt-3 border-t border-orange-200">
               <div className="flex items-center gap-2">
-                <span className="text-gray-500">$</span>
+                <span className="text-gray-700">$</span>
                 <input
                   type="number"
                   step="100"
@@ -245,7 +245,7 @@ export function SubmissionQueue() {
                     Switch to Base
                   </button>
                 ) : isFundPending || isFundConfirming ? (
-                  <button disabled className="px-3 py-1 text-sm bg-gray-300 text-gray-500 rounded flex items-center gap-1">
+                  <button disabled className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded flex items-center gap-1">
                     <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
                     {isFundConfirming ? "Confirming..." : "Sign..."}
                   </button>
@@ -259,7 +259,7 @@ export function SubmissionQueue() {
                       }
                     }}
                     disabled={!fundAmount || parseFloat(fundAmount) <= 0}
-                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:text-gray-500"
+                    className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:text-gray-700"
                   >
                     Send USDC
                   </button>
@@ -283,7 +283,7 @@ export function SubmissionQueue() {
               ${
                 activeTab === tab.value
                   ? "text-orange-600 border-b-2 border-orange-500"
-                  : "text-gray-500 hover:text-gray-700"
+                  : "text-gray-700 hover:text-gray-900"
               }
             `}
           >
@@ -301,7 +301,7 @@ export function SubmissionQueue() {
 
       {/* Empty state */}
       {!isLoading && submissions.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-gray-700">
           No submissions found
         </div>
       )}
@@ -357,11 +357,11 @@ export function SubmissionQueue() {
                   </span>
                 </div>
 
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-800">
                   <p className="font-mono">
                     {submission.ensName || formatAddress(submission.walletAddress)}
                   </p>
-                  <p className="text-gray-400">{formatDate(submission.createdAt)}</p>
+                  <p className="text-gray-600">{formatDate(submission.createdAt)}</p>
                 </div>
 
                 {/* Actions */}
@@ -387,7 +387,7 @@ export function SubmissionQueue() {
                     <div className="space-y-2">
                       <div className="flex items-start gap-2">
                         <div className="flex items-center gap-1 pt-2">
-                          <span className="text-gray-400">$</span>
+                          <span className="text-gray-600">$</span>
                           <input
                             type="number"
                             step="0.01"
@@ -439,7 +439,7 @@ export function SubmissionQueue() {
                   {/* Delete button - always visible */}
                   <button
                     onClick={() => handleDelete(submission.id)}
-                    className="w-full mt-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    className="w-full mt-2 px-3 py-2 text-sm text-gray-700 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                   >
                     Delete
                   </button>

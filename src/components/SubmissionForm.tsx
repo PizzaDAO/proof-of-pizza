@@ -118,7 +118,7 @@ export function SubmissionForm() {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Proof Submitted!
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-800 mb-6">
           Your Proof of Pizza has been submitted for review.
           You&apos;ll receive USDC to your wallet once approved.
         </p>
@@ -154,12 +154,12 @@ export function SubmissionForm() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Proof of Pizza
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-800">
           Upload your pizza and receipt to get reimbursed in USDC
         </p>
         <a
           href="/admin"
-          className="inline-block mt-3 text-sm text-gray-500 hover:text-orange-500 transition-colors"
+          className="inline-block mt-3 text-sm text-gray-700 hover:text-orange-500 transition-colors"
         >
           Admin Panel →
         </a>
@@ -185,17 +185,17 @@ export function SubmissionForm() {
 
       {(isAnalyzing || form.receiptPhotoUrl) && (
         <div className="bg-gray-50 rounded-lg p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
             Amount
           </label>
           {isAnalyzing ? (
-            <div className="flex items-center space-x-2 text-gray-500">
+            <div className="flex items-center space-x-2 text-gray-700">
               <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
               <span>Analyzing receipt...</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <span className="text-2xl text-gray-400">$</span>
+              <span className="text-2xl text-gray-600">$</span>
               <input
                 type="number"
                 step="0.01"
@@ -210,7 +210,7 @@ export function SubmissionForm() {
                 placeholder="0.00"
                 className="text-2xl font-bold w-32 border-b-2 border-gray-300 focus:border-orange-500 focus:outline-none bg-transparent"
               />
-              <span className="text-gray-500">USD</span>
+              <span className="text-gray-700">USD</span>
             </div>
           )}
           {analysisResult?.conversionNote && (
@@ -224,7 +224,7 @@ export function SubmissionForm() {
             </p>
           )}
           {!isAnalyzing && !form.amount && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-700">
               Enter the receipt total manually
             </p>
           )}
@@ -245,7 +245,7 @@ export function SubmissionForm() {
           ${
             isFormValid && !form.isSubmitting
               ? "bg-orange-500 text-white hover:bg-orange-600"
-              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-gray-200 text-gray-700 cursor-not-allowed"
           }
         `}
       >
