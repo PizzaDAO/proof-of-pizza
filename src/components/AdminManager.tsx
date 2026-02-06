@@ -124,7 +124,7 @@ export function AdminManager() {
         <button
           type="submit"
           disabled={isCreating || !newName || !newPassword}
-          className="px-4 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:text-gray-500"
+          className="px-4 py-2 text-sm bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:text-gray-700"
         >
           {isCreating ? "Adding..." : "Add Admin"}
         </button>
@@ -132,9 +132,9 @@ export function AdminManager() {
 
       {/* Admin list */}
       {isLoading ? (
-        <div className="text-center py-4 text-gray-500">Loading...</div>
+        <div className="text-center py-4 text-gray-700">Loading...</div>
       ) : admins.length === 0 ? (
-        <div className="text-center py-4 text-gray-500">No admins added yet</div>
+        <div className="text-center py-4 text-gray-700">No admins added yet</div>
       ) : (
         <div className="space-y-2">
           {admins.map((admin) => (
@@ -161,7 +161,7 @@ export function AdminManager() {
         </div>
       )}
 
-      <p className="mt-4 text-xs text-gray-500">
+      <p className="mt-4 text-xs text-gray-700">
         Superadmins are configured via environment variables and cannot be removed here.
       </p>
     </div>

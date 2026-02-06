@@ -84,7 +84,7 @@ export default function AdminPage() {
           <div className="flex items-center space-x-4">
             <a
               href="/"
-              className="text-gray-400 hover:text-orange-500 transition-colors"
+              className="text-gray-600 hover:text-orange-500 transition-colors"
               title="Back to submission form"
             >
               <svg
@@ -105,7 +105,7 @@ export default function AdminPage() {
               <h1 className="text-xl font-bold text-gray-900">
                 Proof of Pizza Admin
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-700">
                 Review and process reimbursements
               </p>
             </div>
@@ -113,11 +113,11 @@ export default function AdminPage() {
 
           <div className="flex items-center space-x-4">
             {syncStatus && (
-              <span className="text-sm text-gray-600">{syncStatus}</span>
+              <span className="text-sm text-gray-800">{syncStatus}</span>
             )}
             <button
               onClick={handleSyncSheets}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-800 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               title="Sync missing submissions to Google Sheets"
             >
               Sync Sheets
@@ -128,7 +128,7 @@ export default function AdminPage() {
                 className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                   showAdminManager
                     ? "bg-purple-100 text-purple-700"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    : "text-gray-800 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
                 Manage Admins
@@ -144,7 +144,7 @@ export default function AdminPage() {
             )}
             <button
               onClick={handleLogout}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-gray-800 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               Logout
             </button>

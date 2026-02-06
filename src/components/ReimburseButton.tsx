@@ -213,7 +213,7 @@ export function ReimburseButton({
       ) : (
         <button
           disabled
-          className="w-full px-4 py-2 bg-gray-200 text-gray-400 rounded-lg cursor-not-allowed"
+          className="w-full px-4 py-2 bg-gray-200 text-gray-600 rounded-lg cursor-not-allowed"
           title={amount > MAX_AMOUNT ? `Exceeds $${MAX_AMOUNT} limit` : "Insufficient admin wallet balance"}
         >
           Pay from Admin
@@ -223,7 +223,7 @@ export function ReimburseButton({
       {/* Pay with Wallet button */}
       {!isConnected ? (
         isConnecting ? (
-          <button disabled className="w-full px-4 py-2 bg-gray-200 text-gray-500 rounded-lg">
+          <button disabled className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg">
             Connecting...
           </button>
         ) : (

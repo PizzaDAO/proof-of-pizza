@@ -81,7 +81,7 @@ export function ImageUpload({
 
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-gray-900 mb-2">
         {label}
       </label>
 
@@ -130,7 +130,7 @@ export function ImageUpload({
         ) : (
           <div className="text-center">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-12 w-12 text-gray-600"
               stroke="currentColor"
               fill="none"
               viewBox="0 0 48 48"
@@ -155,9 +155,9 @@ export function ImageUpload({
                   disabled={isUploading}
                 />
               </label>
-              <span className="text-gray-500"> or drag and drop</span>
+              <span className="text-gray-700"> or drag and drop</span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">PNG, JPG, WebP up to 10MB</p>
+            <p className="text-xs text-gray-700 mt-1">PNG, JPG, WebP up to 10MB</p>
           </div>
         )}
       </div>

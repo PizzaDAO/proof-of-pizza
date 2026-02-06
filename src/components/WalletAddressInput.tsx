@@ -32,7 +32,7 @@ export function WalletAddressInput({
 
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-gray-900 mb-2">
         Wallet Address or ENS Name
       </label>
 
@@ -90,7 +90,7 @@ export function WalletAddressInput({
               <button
                 type="button"
                 onClick={openConnectModal}
-                className="text-sm text-gray-500 hover:text-orange-600 transition-colors"
+                className="text-sm text-gray-700 hover:text-orange-600 transition-colors"
               >
                 Or connect wallet
               </button>
@@ -100,7 +100,7 @@ export function WalletAddressInput({
       </div>
 
       {isEns && address && (
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-gray-800">
           Resolves to:{" "}
           <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
             {address.slice(0, 6)}...{address.slice(-4)}

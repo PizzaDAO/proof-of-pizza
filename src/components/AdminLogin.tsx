@@ -49,7 +49,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
         <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
           Admin Access
         </h1>
-        <p className="text-gray-500 text-sm text-center mb-6">
+        <p className="text-gray-700 text-sm text-center mb-6">
           Enter your admin password to continue
         </p>
 
