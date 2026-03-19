@@ -21,9 +21,13 @@ model Submission {
   walletAddress   String           // Ethereum address or resolved ENS
   ensName         String?          // Original ENS if provided
 
-  // Images
+  // Images (legacy single-URL fields kept for backward compat)
   pizzaPhotoUrl   String           // R2 URL for pizza photo
   receiptPhotoUrl String           // R2 URL for receipt photo
+
+  // Multi-photo support
+  pizzaPhotoUrls   String[]   @default([])
+  receiptPhotoUrls String[]   @default([])
 
   // Receipt data
   extractedAmount Decimal          @db.Decimal(10, 2) // AI-extracted amount

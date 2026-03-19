@@ -164,6 +164,8 @@ export async function updateSubmissionInSheet(
     currency: string;
     receiptPhotoUrl: string;
     pizzaPhotoUrl: string;
+    receiptPhotoUrls?: string[];
+    pizzaPhotoUrls?: string[];
     createdAt: Date | string;
   }
 ) {
@@ -188,6 +190,16 @@ export async function updateSubmissionInSheet(
       // Row not found - add it if we have full submission data
       if (fullSubmission) {
         console.log(`Submission ${submissionId} not in sheet, adding it now`);
+        // Use array URLs joined with " ; " if available, otherwise single URL
+        const receiptUrlForSheet =
+          fullSubmission.receiptPhotoUrls && fullSubmission.receiptPhotoUrls.length > 0
+            ? fullSubmission.receiptPhotoUrls.join(" ; ")
+            : fullSubmission.receiptPhotoUrl;
+        const pizzaUrlForSheet =
+          fullSubmission.pizzaPhotoUrls && fullSubmission.pizzaPhotoUrls.length > 0
+            ? fullSubmission.pizzaPhotoUrls.join(" ; ")
+            : fullSubmission.pizzaPhotoUrl;
+
         const row = [
           submissionId,
           new Date(fullSubmission.createdAt).toISOString(),
@@ -197,8 +209,8 @@ export async function updateSubmissionInSheet(
           fullSubmission.currency,
           fullSubmission.finalAmount,
           1, // exchange rate
-          fullSubmission.receiptPhotoUrl,
-          fullSubmission.pizzaPhotoUrl,
+          receiptUrlForSheet,
+          pizzaUrlForSheet,
           updates.status || "PENDING",
           updates.transactionHash || "",
           updates.paidAmount || "",
