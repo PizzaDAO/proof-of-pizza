@@ -19,8 +19,12 @@ const createSubmissionSchema = z.object({
       message: "Invalid Ethereum address format",
     }),
   ensName: z.string().optional(),
-  pizzaPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
-  receiptPhotoUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
+  // New multi-photo fields
+  pizzaPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
+  receiptPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
+  // Legacy single-URL fields (for backward compat)
+  pizzaPhotoUrl: z.string().min(1).optional(),
+  receiptPhotoUrl: z.string().min(1).optional(),
   extractedAmount: z.number().positive(),
   finalAmount: z.number().positive(),
   currency: z.string().default("USD"),
@@ -67,12 +71,30 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createSubmissionSchema.parse(body);
 
+    // Resolve photo URLs: prefer arrays, fall back to single URLs
+    const pizzaPhotoUrls = data.pizzaPhotoUrls || (data.pizzaPhotoUrl ? [data.pizzaPhotoUrl] : []);
+    const receiptPhotoUrls = data.receiptPhotoUrls || (data.receiptPhotoUrl ? [data.receiptPhotoUrl] : []);
+
+    // Validate that at least one of each exists
+    if (pizzaPhotoUrls.length === 0 || receiptPhotoUrls.length === 0) {
+      return NextResponse.json(
+        { error: "At least one pizza photo and one receipt photo are required" },
+        { status: 400 }
+      );
+    }
+
+    // Use first URL for legacy single-URL fields
+    const pizzaPhotoUrl = pizzaPhotoUrls[0];
+    const receiptPhotoUrl = receiptPhotoUrls[0];
+
     const submission = await prisma.submission.create({
       data: {
         walletAddress: data.walletAddress,
         ensName: data.ensName,
-        pizzaPhotoUrl: data.pizzaPhotoUrl,
-        receiptPhotoUrl: data.receiptPhotoUrl,
+        pizzaPhotoUrl,
+        receiptPhotoUrl,
+        pizzaPhotoUrls,
+        receiptPhotoUrls,
         extractedAmount: data.extractedAmount,
         finalAmount: data.finalAmount,
         currency: data.currency,
@@ -91,8 +113,8 @@ export async function POST(request: NextRequest) {
       originalAmount: data.originalAmount,
       originalCurrency: data.originalCurrency,
       exchangeRate: data.exchangeRate,
-      receiptPhotoUrl: submission.receiptPhotoUrl,
-      pizzaPhotoUrl: submission.pizzaPhotoUrl,
+      receiptPhotoUrl: submission.receiptPhotoUrls.join(" ; ") || submission.receiptPhotoUrl,
+      pizzaPhotoUrl: submission.pizzaPhotoUrls.join(" ; ") || submission.pizzaPhotoUrl,
       status: submission.status,
       transactionHash: submission.transactionHash,
       paidAmount: submission.paidAmount ? Number(submission.paidAmount) : null,

@@ -141,6 +141,8 @@ export async function POST(request: NextRequest) {
         currency: submission.currency,
         receiptPhotoUrl: submission.receiptPhotoUrl,
         pizzaPhotoUrl: submission.pizzaPhotoUrl,
+        receiptPhotoUrls: submission.receiptPhotoUrls,
+        pizzaPhotoUrls: submission.pizzaPhotoUrls,
         createdAt: submission.createdAt,
       }
     ).catch(console.error);

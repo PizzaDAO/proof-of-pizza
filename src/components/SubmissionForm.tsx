@@ -1,13 +1,25 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { ImageUpload } from "./ImageUpload";
+import { useState, useCallback, useRef } from "react";
+import { MultiImageUpload } from "./MultiImageUpload";
 import { WalletAddressInput } from "./WalletAddressInput";
-import { useReceiptAnalysis } from "@/hooks/useReceiptAnalysis";
+
+interface ReceiptBreakdown {
+  url: string;
+  amount: number | null;
+  currency: string;
+  confidence: number;
+  isAnalyzing: boolean;
+  error: string | null;
+  conversionNote?: string;
+  originalAmount?: number;
+  originalCurrency?: string;
+  exchangeRate?: number;
+}
 
 interface FormState {
-  pizzaPhotoUrl: string | null;
-  receiptPhotoUrl: string | null;
+  pizzaPhotoUrls: string[];
+  receiptPhotoUrls: string[];
   walletInput: string;
   resolvedAddress: string | null;
   amount: number | null;
@@ -18,8 +30,8 @@ interface FormState {
 
 export function SubmissionForm() {
   const [form, setForm] = useState<FormState>({
-    pizzaPhotoUrl: null,
-    receiptPhotoUrl: null,
+    pizzaPhotoUrls: [],
+    receiptPhotoUrls: [],
     walletInput: "",
     resolvedAddress: null,
     amount: null,
@@ -28,19 +40,106 @@ export function SubmissionForm() {
     error: null,
   });
 
-  const { isAnalyzing, result: analysisResult, analyze } = useReceiptAnalysis({
-    onSuccess: (result) => {
-      setForm((prev) => ({ ...prev, amount: result.amount }));
-    },
-  });
+  const [receiptBreakdowns, setReceiptBreakdowns] = useState<ReceiptBreakdown[]>([]);
+  const analyzedUrlsRef = useRef<Set<string>>(new Set());
 
-  const handleReceiptUpload = useCallback(
-    async (url: string) => {
-      setForm((prev) => ({ ...prev, receiptPhotoUrl: url }));
-      await analyze(url);
+  const analyzeReceipt = useCallback(async (url: string) => {
+    // Mark as analyzing
+    setReceiptBreakdowns((prev) => [
+      ...prev,
+      {
+        url,
+        amount: null,
+        currency: "USD",
+        confidence: 0,
+        isAnalyzing: true,
+        error: null,
+      },
+    ]);
+
+    try {
+      const response = await fetch("/api/analyze-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to analyze receipt");
+      }
+
+      const result = await response.json();
+
+      setReceiptBreakdowns((prev) =>
+        prev.map((rb) =>
+          rb.url === url
+            ? {
+                ...rb,
+                amount: result.amount,
+                currency: result.currency || "USD",
+                confidence: result.confidence,
+                isAnalyzing: false,
+                error: null,
+                conversionNote: result.conversionNote,
+                originalAmount: result.originalAmount,
+                originalCurrency: result.originalCurrency,
+                exchangeRate: result.exchangeRate,
+              }
+            : rb
+        )
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to analyze receipt";
+      setReceiptBreakdowns((prev) =>
+        prev.map((rb) =>
+          rb.url === url
+            ? { ...rb, isAnalyzing: false, error: errorMessage }
+            : rb
+        )
+      );
+    }
+  }, []);
+
+  // Recalculate total whenever breakdowns change
+  const totalFromReceipts = receiptBreakdowns.reduce((sum, rb) => {
+    return sum + (rb.amount || 0);
+  }, 0);
+
+  const isAnyAnalyzing = receiptBreakdowns.some((rb) => rb.isAnalyzing);
+
+  const handleReceiptUrlsChange = useCallback(
+    (urls: string[]) => {
+      setForm((prev) => ({ ...prev, receiptPhotoUrls: urls }));
+
+      // Analyze any new URLs that haven't been analyzed yet
+      urls.forEach((url) => {
+        if (!analyzedUrlsRef.current.has(url)) {
+          analyzedUrlsRef.current.add(url);
+          analyzeReceipt(url);
+        }
+      });
+
+      // Remove breakdowns for URLs that were removed
+      setReceiptBreakdowns((prev) =>
+        prev.filter((rb) => urls.includes(rb.url))
+      );
+
+      // Clean up analyzed set
+      const urlSet = new Set(urls);
+      analyzedUrlsRef.current.forEach((analyzedUrl) => {
+        if (!urlSet.has(analyzedUrl)) {
+          analyzedUrlsRef.current.delete(analyzedUrl);
+        }
+      });
     },
-    [analyze]
+    [analyzeReceipt]
   );
+
+  const handlePizzaUrlsChange = useCallback((urls: string[]) => {
+    setForm((prev) => ({ ...prev, pizzaPhotoUrls: urls }));
+  }, []);
 
   const handleWalletChange = useCallback(
     (input: string, resolved: string | null) => {
@@ -53,6 +152,10 @@ export function SubmissionForm() {
     []
   );
 
+  // Use receipt total if available, otherwise manual amount
+  const effectiveAmount =
+    totalFromReceipts > 0 ? totalFromReceipts : form.amount;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setForm((prev) => ({ ...prev, isSubmitting: true, error: null }));
@@ -63,15 +166,21 @@ export function SubmissionForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           walletAddress: form.resolvedAddress,
-          ensName: form.walletInput.endsWith(".eth") ? form.walletInput : undefined,
-          pizzaPhotoUrl: form.pizzaPhotoUrl,
-          receiptPhotoUrl: form.receiptPhotoUrl,
-          extractedAmount: analysisResult?.amount || form.amount,
-          finalAmount: form.amount,
+          ensName: form.walletInput.endsWith(".eth")
+            ? form.walletInput
+            : undefined,
+          pizzaPhotoUrls: form.pizzaPhotoUrls,
+          receiptPhotoUrls: form.receiptPhotoUrls,
+          // Keep legacy fields for backward compat
+          pizzaPhotoUrl: form.pizzaPhotoUrls[0],
+          receiptPhotoUrl: form.receiptPhotoUrls[0],
+          extractedAmount: totalFromReceipts || effectiveAmount,
+          finalAmount: effectiveAmount,
           currency: "USD",
-          originalAmount: analysisResult?.originalAmount,
-          originalCurrency: analysisResult?.originalCurrency,
-          exchangeRate: analysisResult?.exchangeRate,
+          // Use first receipt's conversion info if applicable
+          originalAmount: receiptBreakdowns[0]?.originalAmount,
+          originalCurrency: receiptBreakdowns[0]?.originalCurrency,
+          exchangeRate: receiptBreakdowns[0]?.exchangeRate,
         }),
       });
 
@@ -91,11 +200,11 @@ export function SubmissionForm() {
   };
 
   const isFormValid =
-    form.pizzaPhotoUrl &&
-    form.receiptPhotoUrl &&
+    form.pizzaPhotoUrls.length > 0 &&
+    form.receiptPhotoUrls.length > 0 &&
     form.resolvedAddress &&
-    form.amount &&
-    form.amount > 0;
+    effectiveAmount &&
+    effectiveAmount > 0;
 
   if (form.submitted) {
     return (
@@ -119,22 +228,24 @@ export function SubmissionForm() {
           Proof Submitted!
         </h2>
         <p className="text-gray-600 mb-6">
-          Your Proof of Pizza has been submitted for review.
-          You&apos;ll receive USDC to your wallet once approved.
+          Your Proof of Pizza has been submitted for review. You&apos;ll receive
+          USDC to your wallet once approved.
         </p>
         <button
-          onClick={() =>
+          onClick={() => {
             setForm({
-              pizzaPhotoUrl: null,
-              receiptPhotoUrl: null,
+              pizzaPhotoUrls: [],
+              receiptPhotoUrls: [],
               walletInput: "",
               resolvedAddress: null,
               amount: null,
               isSubmitting: false,
               submitted: false,
               error: null,
-            })
-          }
+            });
+            setReceiptBreakdowns([]);
+            analyzedUrlsRef.current.clear();
+          }}
           className="text-orange-600 hover:text-orange-500 font-medium"
         >
           Submit another
@@ -161,34 +272,87 @@ export function SubmissionForm() {
           href="/admin"
           className="inline-block mt-3 text-sm text-gray-500 hover:text-orange-500 transition-colors"
         >
-          Admin Panel →
+          Admin Panel &rarr;
         </a>
       </div>
 
-      <ImageUpload
+      <MultiImageUpload
         type="receipt"
-        label="Receipt Photo"
-        onUploadComplete={handleReceiptUpload}
-        onClear={() => setForm((prev) => ({ ...prev, receiptPhotoUrl: null, amount: null }))}
+        label="Receipt Photos"
+        onUrlsChange={handleReceiptUrlsChange}
+        onClear={() => {
+          setForm((prev) => ({
+            ...prev,
+            receiptPhotoUrls: [],
+            amount: null,
+          }));
+          setReceiptBreakdowns([]);
+          analyzedUrlsRef.current.clear();
+        }}
       />
 
-      <ImageUpload
+      <MultiImageUpload
         type="pizza"
-        label="Pizza Photo"
-        onUploadComplete={(url) =>
-          setForm((prev) => ({ ...prev, pizzaPhotoUrl: url }))
+        label="Pizza Photos"
+        onUrlsChange={handlePizzaUrlsChange}
+        onClear={() =>
+          setForm((prev) => ({ ...prev, pizzaPhotoUrls: [] }))
         }
-        onClear={() => setForm((prev) => ({ ...prev, pizzaPhotoUrl: null }))}
       />
 
-      <WalletAddressInput value={form.walletInput} onChange={handleWalletChange} />
+      <WalletAddressInput
+        value={form.walletInput}
+        onChange={handleWalletChange}
+      />
 
-      {(isAnalyzing || form.receiptPhotoUrl) && (
+      {(isAnyAnalyzing || receiptBreakdowns.length > 0) && (
         <div className="bg-gray-50 rounded-lg p-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Amount
           </label>
-          {isAnalyzing ? (
+
+          {/* Per-receipt breakdown */}
+          {receiptBreakdowns.length > 1 && (
+            <div className="mb-3 space-y-1">
+              {receiptBreakdowns.map((rb, index) => (
+                <div key={rb.url} className="flex items-center text-sm">
+                  <span className="text-gray-500 w-20">
+                    Receipt {index + 1}:
+                  </span>
+                  {rb.isAnalyzing ? (
+                    <div className="flex items-center space-x-1 text-gray-400">
+                      <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                      <span>Analyzing...</span>
+                    </div>
+                  ) : rb.error ? (
+                    <span className="text-red-500 text-xs">{rb.error}</span>
+                  ) : (
+                    <span className="font-medium">
+                      ${rb.amount?.toFixed(2) || "0.00"}
+                      {rb.conversionNote && (
+                        <span className="ml-1 text-xs text-blue-600">
+                          ({rb.conversionNote})
+                        </span>
+                      )}
+                      {rb.confidence < 0.8 && (
+                        <span className="ml-1 text-xs text-amber-600">
+                          (low confidence)
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {totalFromReceipts > 0 && (
+                <div className="flex items-center text-sm font-bold border-t border-gray-200 pt-1 mt-1">
+                  <span className="text-gray-600 w-20">Total:</span>
+                  <span>${totalFromReceipts.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isAnyAnalyzing && receiptBreakdowns.length <= 1 ? (
             <div className="flex items-center space-x-2 text-gray-500">
               <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
               <span>Analyzing receipt...</span>
@@ -200,7 +364,11 @@ export function SubmissionForm() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={form.amount || ""}
+                value={
+                  totalFromReceipts > 0
+                    ? totalFromReceipts.toFixed(2)
+                    : form.amount || ""
+                }
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
@@ -213,17 +381,23 @@ export function SubmissionForm() {
               <span className="text-gray-500">USD</span>
             </div>
           )}
-          {analysisResult?.conversionNote && (
-            <p className="mt-2 text-sm text-blue-600">
-              {analysisResult.conversionNote}
-            </p>
-          )}
-          {analysisResult && analysisResult.confidence < 0.8 && (
-            <p className="mt-2 text-sm text-amber-600">
-              Low confidence extraction. Please verify the amount.
-            </p>
-          )}
-          {!isAnalyzing && !form.amount && (
+
+          {/* Show single receipt conversion note when only 1 receipt */}
+          {receiptBreakdowns.length === 1 &&
+            receiptBreakdowns[0].conversionNote && (
+              <p className="mt-2 text-sm text-blue-600">
+                {receiptBreakdowns[0].conversionNote}
+              </p>
+            )}
+          {receiptBreakdowns.length === 1 &&
+            receiptBreakdowns[0].confidence < 0.8 &&
+            !receiptBreakdowns[0].isAnalyzing && (
+              <p className="mt-2 text-sm text-amber-600">
+                Low confidence extraction. Please verify the amount.
+              </p>
+            )}
+
+          {!isAnyAnalyzing && !effectiveAmount && (
             <p className="mt-2 text-sm text-gray-500">
               Enter the receipt total manually
             </p>
