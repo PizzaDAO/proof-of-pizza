@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
         extractedAmount: data.extractedAmount,
         finalAmount: data.finalAmount,
         currency: data.currency,
+        originalAmount: data.originalAmount,
+        originalCurrency: data.originalCurrency,
+        exchangeRate: data.exchangeRate,
         status: "PENDING",
       },
     });

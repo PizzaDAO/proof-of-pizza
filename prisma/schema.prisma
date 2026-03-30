@@ -33,9 +33,12 @@ model Submission {
   notes           String?          // Free-text note from submitter
 
   // Receipt data
-  extractedAmount Decimal          @db.Decimal(10, 2) // AI-extracted amount
-  finalAmount     Decimal          @db.Decimal(10, 2) // User-confirmed amount
-  currency        String           @default("USD")
+  extractedAmount  Decimal          @db.Decimal(10, 2) // AI-extracted amount
+  finalAmount      Decimal          @db.Decimal(10, 2) // User-confirmed amount
+  currency         String           @default("USD")
+  originalAmount   Decimal?         @db.Decimal(10, 2) // Amount in original currency
+  originalCurrency String?          // Original currency code (e.g. "EUR", "GBP")
+  exchangeRate     Decimal?         @db.Decimal(18, 6) // Rate used for conversion
 
   // Status
   status          SubmissionStatus @default(PENDING)

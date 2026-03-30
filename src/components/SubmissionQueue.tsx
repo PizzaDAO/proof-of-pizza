@@ -21,6 +21,9 @@ interface Submission {
   extractedAmount: string;
   finalAmount: string;
   currency: string;
+  originalAmount: string | null;
+  originalCurrency: string | null;
+  exchangeRate: string | null;
   status: SubmissionStatus;
   transactionHash: string | null;
   createdAt: string;
@@ -406,9 +409,19 @@ export function SubmissionQueue() {
                 {/* Details */}
                 <div className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-gray-900">
-                      ${parseFloat(submission.finalAmount).toFixed(2)}
-                    </span>
+                    <div>
+                      <span className="text-2xl font-bold text-gray-900">
+                        ${parseFloat(submission.finalAmount).toFixed(2)}
+                      </span>
+                      {submission.originalCurrency && submission.originalCurrency !== "USD" && submission.originalAmount && (
+                        <p className="text-xs text-blue-600">
+                          {parseFloat(submission.originalAmount).toLocaleString()} {submission.originalCurrency}
+                          {submission.exchangeRate && (
+                            <span className="text-gray-400"> @ {parseFloat(submission.exchangeRate).toFixed(4)}</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
                     <span
                       className={`
                         px-2 py-1 text-xs font-medium rounded-full
