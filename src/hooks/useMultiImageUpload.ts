@@ -12,6 +12,9 @@ export interface UploadItem {
   error: string | null;
 }
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 interface UseMultiImageUploadOptions {
   type: "pizza" | "receipt";
 }
@@ -127,21 +130,28 @@ export function useMultiImageUpload({ type }: UseMultiImageUploadOptions) {
 
       const newItems: UploadItem[] = imageFiles.map((file) => {
         const id = `upload-${nextId.current++}`;
+        const tooLarge = file.size > MAX_FILE_SIZE;
+        const badType = !ALLOWED_TYPES.includes(file.type);
+        const error = tooLarge
+          ? `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 20MB.`
+          : badType
+            ? "Invalid file type. Only JPEG, PNG, and WebP are allowed."
+            : null;
         return {
           id,
           file,
           preview: URL.createObjectURL(file),
           publicUrl: null,
-          isUploading: true,
+          isUploading: !error,
           progress: 0,
-          error: null,
+          error,
         };
       });
 
       setItems((prev) => [...prev, ...newItems]);
 
-      // Start uploading each file independently
-      newItems.forEach((item) => uploadFile(item));
+      // Only upload valid files
+      newItems.filter((item) => !item.error).forEach((item) => uploadFile(item));
     },
     [uploadFile]
   );
