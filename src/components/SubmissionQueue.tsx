@@ -17,6 +17,7 @@ interface Submission {
   receiptPhotoUrl: string;
   pizzaPhotoUrls?: string[];
   receiptPhotoUrls?: string[];
+  notes: string | null;
   extractedAmount: string;
   finalAmount: string;
   currency: string;
@@ -426,6 +427,11 @@ export function SubmissionQueue() {
                       {submission.ensName || formatAddress(submission.walletAddress)}
                     </p>
                     <p className="text-gray-400">{formatDate(submission.createdAt)}</p>
+                    {submission.notes && (
+                      <p className="mt-1 text-xs text-gray-500 italic line-clamp-2">
+                        {submission.notes}
+                      </p>
+                    )}
                   </div>
 
                   {/* Actions */}

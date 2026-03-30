@@ -20,6 +20,7 @@ interface ReceiptBreakdown {
 interface FormState {
   pizzaPhotoUrls: string[];
   receiptPhotoUrls: string[];
+  notes: string;
   walletInput: string;
   resolvedAddress: string | null;
   amount: number | null;
@@ -32,6 +33,7 @@ export function SubmissionForm() {
   const [form, setForm] = useState<FormState>({
     pizzaPhotoUrls: [],
     receiptPhotoUrls: [],
+    notes: "",
     walletInput: "",
     resolvedAddress: null,
     amount: null,
@@ -169,6 +171,7 @@ export function SubmissionForm() {
           ensName: form.walletInput.endsWith(".eth")
             ? form.walletInput
             : undefined,
+          notes: form.notes || undefined,
           pizzaPhotoUrls: form.pizzaPhotoUrls,
           receiptPhotoUrls: form.receiptPhotoUrls,
           // Keep legacy fields for backward compat
@@ -236,6 +239,7 @@ export function SubmissionForm() {
             setForm({
               pizzaPhotoUrls: [],
               receiptPhotoUrls: [],
+              notes: "",
               walletInput: "",
               resolvedAddress: null,
               amount: null,
@@ -304,6 +308,23 @@ export function SubmissionForm() {
         value={form.walletInput}
         onChange={handleWalletChange}
       />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Notes
+        </label>
+        <textarea
+          value={form.notes}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, notes: e.target.value }))
+          }
+          placeholder="Who's requesting? Who gave you proof of pizza?"
+          maxLength={500}
+          rows={2}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-sm"
+        />
+        <p className="text-xs text-gray-400 mt-1">{form.notes.length}/500</p>
+      </div>
 
       {(isAnyAnalyzing || receiptBreakdowns.length > 0) && (
         <div className="bg-gray-50 rounded-lg p-4">

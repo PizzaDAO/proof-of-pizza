@@ -22,7 +22,8 @@ const HEADERS = [
   "Paid Amount (USDC)",
   "Paid At",
   "Reviewed By",
-  "Notes",
+  "Rejection Reason",
+  "Submitter Notes",
 ];
 
 async function getAuthClient() {
@@ -63,14 +64,14 @@ export async function initializeSheet() {
     // Check if headers exist
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A1:P1`,
+      range: `${SHEET_NAME}!A1:Q1`,
     });
 
     if (!response.data.values || response.data.values.length === 0) {
       // Add headers
       await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A1:P1`,
+        range: `${SHEET_NAME}!A1:Q1`,
         valueInputOption: "RAW",
         requestBody: {
           values: [HEADERS],
@@ -101,6 +102,7 @@ export async function logSubmission(submission: {
   paidAt?: Date | string | null;
   reviewedBy?: string | null;
   rejectionReason?: string | null;
+  notes?: string | null;
   createdAt: Date | string;
 }) {
   if (!SPREADSHEET_ID) {
@@ -128,11 +130,12 @@ export async function logSubmission(submission: {
       submission.paidAt ? new Date(submission.paidAt).toISOString() : "",
       submission.reviewedBy || "",
       submission.rejectionReason || "",
+      submission.notes || "",
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:P`,
+      range: `${SHEET_NAME}!A:Q`,
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
@@ -166,6 +169,7 @@ export async function updateSubmissionInSheet(
     pizzaPhotoUrl: string;
     receiptPhotoUrls?: string[];
     pizzaPhotoUrls?: string[];
+    notes?: string | null;
     createdAt: Date | string;
   }
 ) {
@@ -217,11 +221,12 @@ export async function updateSubmissionInSheet(
           updates.paidAt ? new Date(updates.paidAt).toISOString() : "",
           updates.reviewedBy || "",
           updates.rejectionReason || "",
+          fullSubmission.notes || "",
         ];
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME}!A:P`,
+          range: `${SHEET_NAME}!A:Q`,
           valueInputOption: "RAW",
           insertDataOption: "INSERT_ROWS",
           requestBody: {
@@ -235,7 +240,7 @@ export async function updateSubmissionInSheet(
       return;
     }
 
-    // Update the specific cells (Status=K, TxHash=L, PaidAmount=M, PaidAt=N, ReviewedBy=O, Notes=P)
+    // Update the specific cells (Status=K, TxHash=L, PaidAmount=M, PaidAt=N, ReviewedBy=O, RejectionReason=P, SubmitterNotes=Q)
     const rowNumber = rowIndex + 1; // 1-indexed
 
     const updateValues: [string, unknown][] = [];

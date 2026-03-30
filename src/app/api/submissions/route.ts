@@ -19,6 +19,7 @@ const createSubmissionSchema = z.object({
       message: "Invalid Ethereum address format",
     }),
   ensName: z.string().optional(),
+  notes: z.string().max(500).optional(),
   // New multi-photo fields
   pizzaPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
   receiptPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
       data: {
         walletAddress: data.walletAddress,
         ensName: data.ensName,
+        notes: data.notes,
         pizzaPhotoUrl,
         receiptPhotoUrl,
         pizzaPhotoUrls,
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
       exchangeRate: data.exchangeRate,
       receiptPhotoUrl: submission.receiptPhotoUrls.join(" ; ") || submission.receiptPhotoUrl,
       pizzaPhotoUrl: submission.pizzaPhotoUrls.join(" ; ") || submission.pizzaPhotoUrl,
+      notes: submission.notes,
       status: submission.status,
       transactionHash: submission.transactionHash,
       paidAmount: submission.paidAmount ? Number(submission.paidAmount) : null,
