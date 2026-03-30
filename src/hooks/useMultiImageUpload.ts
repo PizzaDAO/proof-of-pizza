@@ -21,26 +21,43 @@ export function useMultiImageUpload({ type }: UseMultiImageUploadOptions) {
   const nextId = useRef(0);
 
   const uploadFile = useCallback(
-    (item: UploadItem) => {
-      const formData = new FormData();
-      formData.append("file", item.file);
-      formData.append("type", type);
+    async (item: UploadItem) => {
+      try {
+        // Step 1: Get a presigned URL from our API (small JSON request, no file data)
+        const presignRes = await fetch("/api/upload/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: item.file.name,
+            fileType: item.file.type,
+            fileSize: item.file.size,
+            type,
+          }),
+        });
 
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setItems((prev) =>
-            prev.map((i) => (i.id === item.id ? { ...i, progress } : i))
+        if (!presignRes.ok) {
+          const err = await presignRes.json().catch(() => ({}));
+          throw new Error(
+            err.error || `Failed to get upload URL (${presignRes.status})`
           );
         }
-      });
 
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
+        const { presignedUrl, publicUrl } = await presignRes.json();
+
+        // Step 2: Upload directly to R2 using the presigned URL (bypasses Vercel 4.5MB limit)
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const progress = Math.round((e.loaded / e.total) * 100);
+            setItems((prev) =>
+              prev.map((i) => (i.id === item.id ? { ...i, progress } : i))
+            );
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
             setItems((prev) =>
               prev.map((i) =>
                 i.id === item.id
@@ -48,13 +65,13 @@ export function useMultiImageUpload({ type }: UseMultiImageUploadOptions) {
                       ...i,
                       isUploading: false,
                       progress: 100,
-                      publicUrl: response.publicUrl,
+                      publicUrl,
                       error: null,
                     }
                   : i
               )
             );
-          } catch {
+          } else {
             setItems((prev) =>
               prev.map((i) =>
                 i.id === item.id
@@ -62,47 +79,43 @@ export function useMultiImageUpload({ type }: UseMultiImageUploadOptions) {
                       ...i,
                       isUploading: false,
                       progress: 0,
-                      error: "Invalid response from server",
+                      error: `Upload failed with status ${xhr.status}`,
                     }
                   : i
               )
             );
           }
-        } else {
-          let errorMsg = `Upload failed with status ${xhr.status}`;
-          try {
-            const error = JSON.parse(xhr.responseText);
-            errorMsg = error.error || errorMsg;
-          } catch {
-            // keep default error message
-          }
+        });
+
+        xhr.addEventListener("error", () => {
           setItems((prev) =>
             prev.map((i) =>
               i.id === item.id
-                ? { ...i, isUploading: false, progress: 0, error: errorMsg }
+                ? {
+                    ...i,
+                    isUploading: false,
+                    progress: 0,
+                    error: "Upload failed - network error",
+                  }
                 : i
             )
           );
-        }
-      });
+        });
 
-      xhr.addEventListener("error", () => {
+        xhr.open("PUT", presignedUrl);
+        xhr.setRequestHeader("Content-Type", item.file.type);
+        xhr.send(item.file);
+      } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : "Upload failed";
         setItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? {
-                  ...i,
-                  isUploading: false,
-                  progress: 0,
-                  error: "Upload failed - network error",
-                }
+              ? { ...i, isUploading: false, progress: 0, error: errorMsg }
               : i
           )
         );
-      });
-
-      xhr.open("POST", "/api/upload");
-      xhr.send(formData);
+      }
     },
     [type]
   );
