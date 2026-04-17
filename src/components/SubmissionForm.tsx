@@ -24,6 +24,7 @@ interface FormState {
   walletInput: string;
   resolvedAddress: string | null;
   amount: number | null;
+  amountOverridden: boolean;
   isSubmitting: boolean;
   submitted: boolean;
   error: string | null;
@@ -37,6 +38,7 @@ export function SubmissionForm() {
     walletInput: "",
     resolvedAddress: null,
     amount: null,
+    amountOverridden: false,
     isSubmitting: false,
     submitted: false,
     error: null,
@@ -154,8 +156,9 @@ export function SubmissionForm() {
     []
   );
 
-  // Use receipt total if available, otherwise manual amount
+  // Use manual override if user edited, otherwise receipt total, otherwise manual amount
   const effectiveAmount =
+    form.amountOverridden ? form.amount :
     totalFromReceipts > 0 ? totalFromReceipts : form.amount;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -243,6 +246,7 @@ export function SubmissionForm() {
               walletInput: "",
               resolvedAddress: null,
               amount: null,
+              amountOverridden: false,
               isSubmitting: false,
               submitted: false,
               error: null,
@@ -289,6 +293,7 @@ export function SubmissionForm() {
             ...prev,
             receiptPhotoUrls: [],
             amount: null,
+            amountOverridden: false,
           }));
           setReceiptBreakdowns([]);
           analyzedUrlsRef.current.clear();
@@ -380,24 +385,27 @@ export function SubmissionForm() {
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <span className="text-2xl text-gray-400">$</span>
+              <span className="text-2xl text-gray-700">$</span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={
-                  totalFromReceipts > 0
-                    ? totalFromReceipts.toFixed(2)
-                    : form.amount || ""
+                  form.amountOverridden
+                    ? (form.amount ?? "")
+                    : totalFromReceipts > 0
+                      ? totalFromReceipts.toFixed(2)
+                      : (form.amount ?? "")
                 }
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
                     amount: parseFloat(e.target.value) || null,
+                    amountOverridden: true,
                   }))
                 }
                 placeholder="0.00"
-                className="text-2xl font-bold w-32 border-b-2 border-gray-300 focus:border-orange-500 focus:outline-none bg-transparent"
+                className="text-2xl font-bold w-32 border-b-2 border-gray-300 focus:border-orange-500 focus:outline-none bg-transparent text-gray-900"
               />
               <span className="text-gray-500">USD</span>
             </div>
