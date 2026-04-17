@@ -43,7 +43,7 @@ export function WalletAddressInput({
           onChange={(e) => setInput(e.target.value)}
           placeholder="0x... or vitalik.eth"
           className={`
-            w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors
+            w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors text-gray-900
             ${error ? "border-red-300 focus:ring-red-500" : "border-gray-300 focus:ring-orange-500"}
             ${isValid ? "border-green-300" : ""}
           `}

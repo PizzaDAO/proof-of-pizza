@@ -326,7 +326,7 @@ export function SubmissionForm() {
           placeholder="Who's requesting? Who gave you proof of pizza?"
           maxLength={500}
           rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-sm text-gray-900"
         />
         <p className="text-xs text-gray-400 mt-1">{form.notes.length}/500</p>
       </div>
