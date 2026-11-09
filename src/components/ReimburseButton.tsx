@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { base } from "wagmi/chains";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -54,7 +55,7 @@ export function ReimburseButton({
     onSuccess: async (txHash) => {
       setIsUpdating(true);
       try {
-        await fetch(`/api/submissions/${submissionId}`, {
+        const res = await adminFetch(`/api/submissions/${submissionId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -63,6 +64,7 @@ export function ReimburseButton({
             paidAmount: amount,
           }),
         });
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
         onStatusChange();
       } catch (err) {
         setError("Failed to update submission status");

@@ -6,6 +6,8 @@ import { base } from "wagmi/chains";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { ReimburseButton } from "./ReimburseButton";
+import { AuthImage } from "./AuthImage";
+import { adminFetch } from "@/lib/admin-fetch";
 
 type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 
@@ -57,6 +59,7 @@ export function SubmissionQueue() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeTab, setActiveTab] = useState<SubmissionStatus | "ALL">("PENDING");
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [editingAmounts, setEditingAmounts] = useState<Record<string, string>>({});
@@ -107,11 +110,14 @@ export function SubmissionQueue() {
         activeTab === "ALL"
           ? "/api/submissions"
           : `/api/submissions?status=${activeTab}`;
-      const response = await fetch(url);
+      const response = await adminFetch(url);
+      if (!response.ok) throw new Error(`Request failed (${response.status})`);
       const data = await response.json();
       setSubmissions(data.submissions || []);
+      setErrorMsg(null);
     } catch (error) {
       console.error("Failed to fetch submissions:", error);
+      setErrorMsg("Failed to load submissions.");
     } finally {
       setIsLoading(false);
     }
@@ -149,28 +155,32 @@ export function SubmissionQueue() {
 
   const handleApprove = async (id: string) => {
     try {
-      await fetch(`/api/submissions/${id}`, {
+      const res = await adminFetch(`/api/submissions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "APPROVED" }),
       });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       fetchSubmissions();
     } catch (error) {
       console.error("Failed to approve:", error);
+      setErrorMsg("Failed to approve submission.");
     }
   };
 
   const handleReject = async (id: string) => {
     const reason = prompt("Rejection reason (optional):");
     try {
-      await fetch(`/api/submissions/${id}`, {
+      const res = await adminFetch(`/api/submissions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "REJECTED", rejectionReason: reason }),
       });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       fetchSubmissions();
     } catch (error) {
       console.error("Failed to reject:", error);
+      setErrorMsg("Failed to reject submission.");
     }
   };
 
@@ -179,12 +189,14 @@ export function SubmissionQueue() {
       return;
     }
     try {
-      await fetch(`/api/submissions/${id}`, {
+      const res = await adminFetch(`/api/submissions/${id}`, {
         method: "DELETE",
       });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
       fetchSubmissions();
     } catch (error) {
       console.error("Failed to delete:", error);
+      setErrorMsg("Failed to delete submission.");
     }
   };
 
@@ -342,6 +354,12 @@ export function SubmissionQueue() {
       </div>
 
       {/* Loading */}
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {errorMsg}
+        </div>
+      )}
+
       {isLoading && (
         <div className="flex items-center justify-center py-12">
           <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -379,7 +397,7 @@ export function SubmissionQueue() {
                         className="flex-shrink-0 aspect-square overflow-hidden rounded bg-gray-100"
                         style={{ width: pizzaUrls.length === 1 ? "50%" : "80px" }}
                       >
-                        <img
+                        <AuthImage
                           src={url}
                           alt={`Pizza ${idx + 1}`}
                           className="w-full h-full object-cover hover:scale-105 transition-transform"
@@ -396,7 +414,7 @@ export function SubmissionQueue() {
                         className="flex-shrink-0 aspect-square overflow-hidden rounded bg-gray-100"
                         style={{ width: receiptUrls.length === 1 ? "50%" : "80px" }}
                       >
-                        <img
+                        <AuthImage
                           src={url}
                           alt={`Receipt ${idx + 1}`}
                           className="w-full h-full object-cover hover:scale-105 transition-transform"
@@ -578,7 +596,7 @@ export function SubmissionQueue() {
             )}
 
             {/* Image */}
-            <img
+            <AuthImage
               src={lightboxImages[lightboxIndex]}
               alt={`Image ${lightboxIndex + 1} of ${lightboxImages.length}`}
               className="max-w-full max-h-[80vh] object-contain rounded-lg"

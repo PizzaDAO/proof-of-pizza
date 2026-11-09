@@ -6,6 +6,12 @@ import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB
 
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
 export async function POST(request: NextRequest) {
   try {
     if (
@@ -44,7 +50,7 @@ export async function POST(request: NextRequest) {
     // Generate unique key
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
-    const extension = (fileName || "image").split(".").pop() || "jpg";
+    const extension = EXT_BY_TYPE[fileType];
     const key = `${type}/${timestamp}-${randomId}.${extension}`;
 
     // Generate presigned PUT URL (expires in 5 minutes)

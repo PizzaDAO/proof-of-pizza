@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
 
+const EXT_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
 export async function POST(request: NextRequest) {
   try {
     // Check R2 config
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Generate unique key
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
-    const extension = file.name.split(".").pop() || "jpg";
+    const extension = EXT_BY_TYPE[file.type];
     const key = `${type}/${timestamp}-${randomId}.${extension}`;
 
     // Convert file to buffer

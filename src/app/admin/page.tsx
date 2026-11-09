@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
 import { AdminLogin } from "@/components/AdminLogin";
 import { AdminManager } from "@/components/AdminManager";
+import { clearAdminSession, ADMIN_UNAUTHORIZED_EVENT } from "@/lib/admin-fetch";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -21,6 +22,17 @@ export default function AdminPage() {
     setIsSuperAdmin(storedSuperAdmin === "true");
   }, []);
 
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setIsAuthenticated(false);
+      setAdminName(null);
+      setIsSuperAdmin(false);
+      setShowAdminManager(false);
+    };
+    window.addEventListener(ADMIN_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(ADMIN_UNAUTHORIZED_EVENT, onUnauthorized);
+  }, []);
+
   const handleLogin = (name: string, superAdmin?: boolean) => {
     setAdminName(name);
     setIsSuperAdmin(!!superAdmin);
@@ -31,10 +43,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("admin_authenticated");
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_name");
-    localStorage.removeItem("admin_is_super");
+    clearAdminSession();
     setIsAuthenticated(false);
     setAdminName(null);
     setIsSuperAdmin(false);
