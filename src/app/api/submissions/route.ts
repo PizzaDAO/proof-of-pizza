@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { isAdminRequest } from "@/lib/admin-auth";
 import { logSubmission, initializeSheet } from "@/lib/google-sheets";
 
 // Initialize sheet headers on first load
@@ -35,6 +36,9 @@ const createSubmissionSchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status") as SubmissionStatus | null;

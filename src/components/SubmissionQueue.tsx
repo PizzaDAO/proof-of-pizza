@@ -7,6 +7,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { ReimburseButton } from "./ReimburseButton";
 import { AuthImage } from "./AuthImage";
+import { adminFetch } from "@/lib/admin-fetch";
 
 type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 
@@ -108,7 +109,7 @@ export function SubmissionQueue() {
         activeTab === "ALL"
           ? "/api/submissions"
           : `/api/submissions?status=${activeTab}`;
-      const response = await fetch(url);
+      const response = await adminFetch(url);
       const data = await response.json();
       setSubmissions(data.submissions || []);
     } catch (error) {
@@ -150,7 +151,7 @@ export function SubmissionQueue() {
 
   const handleApprove = async (id: string) => {
     try {
-      await fetch(`/api/submissions/${id}`, {
+      await adminFetch(`/api/submissions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "APPROVED" }),
@@ -164,7 +165,7 @@ export function SubmissionQueue() {
   const handleReject = async (id: string) => {
     const reason = prompt("Rejection reason (optional):");
     try {
-      await fetch(`/api/submissions/${id}`, {
+      await adminFetch(`/api/submissions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "REJECTED", rejectionReason: reason }),
@@ -180,7 +181,7 @@ export function SubmissionQueue() {
       return;
     }
     try {
-      await fetch(`/api/submissions/${id}`, {
+      await adminFetch(`/api/submissions/${id}`, {
         method: "DELETE",
       });
       fetchSubmissions();

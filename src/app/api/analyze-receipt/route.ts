@@ -150,15 +150,19 @@ async function convertToUSD(amount: number, fromCurrency: string): Promise<{
 async function getImageAsBase64(imageUrl: string): Promise<string> {
   // Extract the key from the URL
   // Handle both /api/images/... proxy URLs and full URLs
-  let key: string;
-
-  if (imageUrl.startsWith("/api/images/")) {
-    // Proxy URL format: /api/images/receipt/123-abc.jpg
-    key = imageUrl.replace("/api/images/", "");
-  } else {
-    // Full URL format
-    const url = new URL(imageUrl);
-    key = url.pathname.slice(1); // Remove leading slash
+  // Only accept keys from our own upload flow (/api/images/<receipt|pizza>/<ms>-<rand>.<ext>)
+  // uploaded within the last hour, so this can't be used to read arbitrary stored images.
+  if (!imageUrl.startsWith("/api/images/")) {
+    throw new Error("Invalid image URL");
+  }
+  const key = imageUrl.replace("/api/images/", "");
+  const match = /^(receipt|pizza)\/(\d+)-[\w.-]+$/.exec(key);
+  if (!match) {
+    throw new Error("Invalid image URL");
+  }
+  const age = Date.now() - Number(match[2]);
+  if (age > 60 * 60 * 1000 || age < -5 * 60 * 1000) {
+    throw new Error("Image is too old to analyze");
   }
 
   try {
@@ -261,6 +265,10 @@ If you cannot determine the total, estimate from visible items. Always return va
         { error: "Invalid request or response", details: error.errors },
         { status: 400 }
       );
+    }
+
+    if (error instanceof Error && /^(Invalid image URL|Image is too old)/.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     console.error("Receipt analysis error:", error);
