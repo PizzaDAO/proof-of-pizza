@@ -5,7 +5,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
 
 const requestSchema = z.object({
-  imageUrl: z.string().min(1), // Accept both relative (/api/images/...) and full URLs
+  imageUrl: z.string().min(1), // Relative proxy URL only: /api/images/<receipt|pizza>/<ms>-<rand>.<ext>
 });
 
 const responseSchema = z.object({
@@ -148,8 +148,6 @@ async function convertToUSD(amount: number, fromCurrency: string): Promise<{
 }
 
 async function getImageAsBase64(imageUrl: string): Promise<string> {
-  // Extract the key from the URL
-  // Handle both /api/images/... proxy URLs and full URLs
   // Only accept keys from our own upload flow (/api/images/<receipt|pizza>/<ms>-<rand>.<ext>)
   // uploaded within the last hour, so this can't be used to read arbitrary stored images.
   if (!imageUrl.startsWith("/api/images/")) {

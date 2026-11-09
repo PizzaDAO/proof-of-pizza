@@ -47,7 +47,7 @@ export async function GET(
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": response.ContentType || "image/jpeg",
-        "Cache-Control": "private, no-store",
+        "Cache-Control": "private, max-age=3600",
       },
     });
   } catch (error) {

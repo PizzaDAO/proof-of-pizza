@@ -6,6 +6,13 @@ import { useEffect, useState } from "react";
 // can't send, so fetch as a blob and display an object URL.
 const cache = new Map<string, Promise<string>>();
 
+export function clearAuthImageCache() {
+  for (const p of cache.values()) {
+    p.then((u) => URL.revokeObjectURL(u)).catch(() => {});
+  }
+  cache.clear();
+}
+
 function loadBlobUrl(src: string): Promise<string> {
   let p = cache.get(src);
   if (!p) {
@@ -46,7 +53,12 @@ export function AuthImage({
   }, [src]);
 
   if (!blobUrl || blobUrl.src !== src) {
-    return <div className={`${className ?? ""} bg-gray-200`} aria-label={alt} />;
+    return (
+      <div
+        className={`${className ?? ""} bg-gray-200 min-w-[200px] min-h-[200px]`}
+        aria-label={alt}
+      />
+    );
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={blobUrl.url} alt={alt} className={className} />;

@@ -55,7 +55,7 @@ export function ReimburseButton({
     onSuccess: async (txHash) => {
       setIsUpdating(true);
       try {
-        await adminFetch(`/api/submissions/${submissionId}`, {
+        const res = await adminFetch(`/api/submissions/${submissionId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -64,6 +64,7 @@ export function ReimburseButton({
             paidAmount: amount,
           }),
         });
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
         onStatusChange();
       } catch (err) {
         setError("Failed to update submission status");
