@@ -6,6 +6,7 @@ import { base } from "wagmi/chains";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useUsdcTransfer } from "@/hooks/useUsdcTransfer";
 import { ReimburseButton } from "./ReimburseButton";
+import { AuthImage } from "./AuthImage";
 
 type SubmissionStatus = "PENDING" | "APPROVED" | "REJECTED" | "PAID";
 
@@ -379,7 +380,7 @@ export function SubmissionQueue() {
                         className="flex-shrink-0 aspect-square overflow-hidden rounded bg-gray-100"
                         style={{ width: pizzaUrls.length === 1 ? "50%" : "80px" }}
                       >
-                        <img
+                        <AuthImage
                           src={url}
                           alt={`Pizza ${idx + 1}`}
                           className="w-full h-full object-cover hover:scale-105 transition-transform"
@@ -396,7 +397,7 @@ export function SubmissionQueue() {
                         className="flex-shrink-0 aspect-square overflow-hidden rounded bg-gray-100"
                         style={{ width: receiptUrls.length === 1 ? "50%" : "80px" }}
                       >
-                        <img
+                        <AuthImage
                           src={url}
                           alt={`Receipt ${idx + 1}`}
                           className="w-full h-full object-cover hover:scale-105 transition-transform"
@@ -578,7 +579,7 @@ export function SubmissionQueue() {
             )}
 
             {/* Image */}
-            <img
+            <AuthImage
               src={lightboxImages[lightboxIndex]}
               alt={`Image ${lightboxIndex + 1} of ${lightboxImages.length}`}
               className="max-w-full max-h-[80vh] object-contain rounded-lg"
