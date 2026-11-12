@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface Admin {
   id: string;
@@ -21,10 +22,7 @@ export function AdminManager() {
   const fetchAdmins = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/admin/admins", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await adminFetch("/api/admin/admins");
       if (response.ok) {
         const data = await response.json();
         setAdmins(data.admins || []);
@@ -50,13 +48,9 @@ export function AdminManager() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/admin/admins", {
+      const response = await adminFetch("/api/admin/admins", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName, adminPassword: newPassword }),
       });
 
@@ -79,10 +73,8 @@ export function AdminManager() {
     if (!confirm(`Are you sure you want to remove ${adminName}?`)) return;
 
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch(`/api/admin/admins?id=${adminId}`, {
+      const response = await adminFetch(`/api/admin/admins?id=${encodeURIComponent(adminId)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {

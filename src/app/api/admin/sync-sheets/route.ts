@@ -3,17 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { google } from "googleapis";
 import path from "path";
 import fs from "fs";
+import { requireAdmin } from "@/lib/admin-auth";
 
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;
 const SHEET_NAME = "Sheet1";
-
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return false;
-
-  const password = authHeader.replace("Bearer ", "");
-  return password === process.env.ADMIN_PASSWORD;
-}
 
 async function getAuthClient() {
   let credentials;
@@ -40,9 +33,8 @@ async function getSheets() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!verifyAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
 
   if (!SPREADSHEET_ID) {
     return NextResponse.json(

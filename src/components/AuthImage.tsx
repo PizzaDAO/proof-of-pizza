@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-// Images are served only to admins via an Authorization header, which <img src>
-// can't send, so fetch as a blob and display an object URL.
+// Images are served only to admins (session cookie). Fetch as a blob so a 401
+// can be handled and the object URL dropped on logout.
 const cache = new Map<string, Promise<string>>();
 
 export function clearAuthImageCache() {
@@ -16,8 +16,7 @@ export function clearAuthImageCache() {
 function loadBlobUrl(src: string): Promise<string> {
   let p = cache.get(src);
   if (!p) {
-    const token = localStorage.getItem("admin_token") || "";
-    p = fetch(src, { headers: { Authorization: `Bearer ${token}` } })
+    p = fetch(src, { credentials: "same-origin" })
       .then((res) => {
         if (!res.ok) throw new Error(`Image request failed (${res.status})`);
         return res.blob();

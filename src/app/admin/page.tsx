@@ -4,22 +4,44 @@ import { useState, useEffect } from "react";
 import { SubmissionQueue } from "@/components/SubmissionQueue";
 import { AdminLogin } from "@/components/AdminLogin";
 import { AdminManager } from "@/components/AdminManager";
-import { clearAdminSession, ADMIN_UNAUTHORIZED_EVENT } from "@/lib/admin-fetch";
+import {
+  adminFetch,
+  clearLegacyAdminStorage,
+  logoutAdmin,
+  ADMIN_UNAUTHORIZED_EVENT,
+} from "@/lib/admin-fetch";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [adminName, setAdminName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [canManageAdmins, setCanManageAdmins] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [showAdminManager, setShowAdminManager] = useState(false);
 
+  // Ask the server whether the httpOnly session cookie is valid.
   useEffect(() => {
-    const authState = localStorage.getItem("admin_authenticated");
-    const storedName = localStorage.getItem("admin_name");
-    const storedSuperAdmin = localStorage.getItem("admin_is_super");
-    setIsAuthenticated(authState === "true");
-    setAdminName(storedName);
-    setIsSuperAdmin(storedSuperAdmin === "true");
+    clearLegacyAdminStorage();
+    let cancelled = false;
+    fetch("/api/admin/session", { credentials: "same-origin" })
+      .then(async (res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          setAdminName(data.adminName);
+          setIsSuperAdmin(!!data.isSuperAdmin);
+          setCanManageAdmins(!!data.canManageAdmins);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIsAuthenticated(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -27,39 +49,33 @@ export default function AdminPage() {
       setIsAuthenticated(false);
       setAdminName(null);
       setIsSuperAdmin(false);
+      setCanManageAdmins(false);
       setShowAdminManager(false);
     };
     window.addEventListener(ADMIN_UNAUTHORIZED_EVENT, onUnauthorized);
     return () => window.removeEventListener(ADMIN_UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
-  const handleLogin = (name: string, superAdmin?: boolean) => {
+  const handleLogin = (name: string, superAdmin: boolean, manageAdmins: boolean) => {
     setAdminName(name);
-    setIsSuperAdmin(!!superAdmin);
+    setIsSuperAdmin(superAdmin);
+    setCanManageAdmins(manageAdmins);
     setIsAuthenticated(true);
-    if (superAdmin) {
-      localStorage.setItem("admin_is_super", "true");
-    }
   };
 
-  const handleLogout = () => {
-    clearAdminSession();
+  const handleLogout = async () => {
+    await logoutAdmin();
     setIsAuthenticated(false);
     setAdminName(null);
     setIsSuperAdmin(false);
+    setCanManageAdmins(false);
     setShowAdminManager(false);
   };
 
   const handleSyncSheets = async () => {
     setSyncStatus("Syncing...");
     try {
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch("/api/admin/sync-sheets", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await adminFetch("/api/admin/sync-sheets", { method: "POST" });
       const data = await response.json();
       if (response.ok) {
         setSyncStatus(data.message);
@@ -131,7 +147,7 @@ export default function AdminPage() {
             >
               Sync Sheets
             </button>
-            {isSuperAdmin && (
+            {canManageAdmins && (
               <button
                 onClick={() => setShowAdminManager(!showAdminManager)}
                 className={`px-4 py-2 text-sm rounded-lg transition-colors ${
@@ -162,7 +178,7 @@ export default function AdminPage() {
       </header>
 
       {/* Admin Manager Panel */}
-      {showAdminManager && isSuperAdmin && (
+      {showAdminManager && canManageAdmins && (
         <div className="max-w-7xl mx-auto px-4 pt-6">
           <AdminManager />
         </div>

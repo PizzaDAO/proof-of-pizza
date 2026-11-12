@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 interface AdminLoginProps {
-  onLogin: (adminName: string, isSuperAdmin?: boolean) => void;
+  onLogin: (adminName: string, isSuperAdmin: boolean, canManageAdmins: boolean) => void;
 }
 
 export function AdminLogin({ onLogin }: AdminLoginProps) {
@@ -20,19 +20,16 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
       const response = await fetch("/api/admin/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ password }),
       });
 
       const data = await response.json();
 
       if (response.ok && data.adminName) {
-        localStorage.setItem("admin_authenticated", "true");
-        localStorage.setItem("admin_token", password);
-        localStorage.setItem("admin_name", data.adminName);
-        if (data.isSuperAdmin) {
-          localStorage.setItem("admin_is_super", "true");
-        }
-        onLogin(data.adminName, data.isSuperAdmin);
+        // The server set an httpOnly session cookie; the password is not kept anywhere.
+        setPassword("");
+        onLogin(data.adminName, !!data.isSuperAdmin, !!data.canManageAdmins);
       } else {
         setError(data.error || "Incorrect password");
       }

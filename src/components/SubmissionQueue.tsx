@@ -80,7 +80,7 @@ export function SubmissionQueue() {
       setShowFundForm(false);
       // Refresh balance after a short delay
       setTimeout(() => {
-        fetch("/api/admin/wallet-balance")
+        adminFetch("/api/admin/wallet-balance")
           .then((res) => res.json())
           .then((data) => setAdminWallet({ balance: data.balance ?? 0, address: data.address ?? "" }));
       }, 2000);
@@ -97,7 +97,7 @@ export function SubmissionQueue() {
 
   // Fetch admin wallet balance
   useEffect(() => {
-    fetch("/api/admin/wallet-balance")
+    adminFetch("/api/admin/wallet-balance")
       .then((res) => res.json())
       .then((data) => setAdminWallet({ balance: data.balance ?? 0, address: data.address ?? "" }))
       .catch(() => setAdminWallet({ balance: 0, address: "" }));

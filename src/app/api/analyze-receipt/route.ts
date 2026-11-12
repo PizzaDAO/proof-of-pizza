@@ -3,9 +3,15 @@ import { getOpenAI } from "@/lib/openai";
 import { z } from "zod";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME } from "@/lib/r2-client";
+import { limitByIp } from "@/lib/rate-limit";
+import { ALLOWED_UPLOAD_TYPES, MAX_UPLOAD_BYTES, parseUploadUrl } from "@/lib/upload-keys";
+
+// Each call is a paid GPT-4o vision request, so throttle per IP.
+const ANALYZE_LIMIT = 20;
+const ANALYZE_WINDOW_SECONDS = 60 * 60;
 
 const requestSchema = z.object({
-  imageUrl: z.string().min(1), // Relative proxy URL only: /api/images/<receipt|pizza>/<ms>-<rand>.<ext>
+  imageUrl: z.string().min(1).max(200), // Relative proxy URL only: /api/images/receipt/<ms>-<uuid>.<ext>
 });
 
 const responseSchema = z.object({
@@ -148,17 +154,14 @@ async function convertToUSD(amount: number, fromCurrency: string): Promise<{
 }
 
 async function getImageAsBase64(imageUrl: string): Promise<string> {
-  // Only accept keys from our own upload flow (/api/images/<receipt|pizza>/<ms>-<rand>.<ext>)
-  // uploaded within the last hour, so this can't be used to read arbitrary stored images.
-  if (!imageUrl.startsWith("/api/images/")) {
+  // Only accept receipt keys from our own upload flow, uploaded within the last
+  // hour, so this can't be used to read arbitrary stored images.
+  const parsed = parseUploadUrl(imageUrl);
+  if (!parsed || parsed.folder !== "receipt") {
     throw new Error("Invalid image URL");
   }
-  const key = imageUrl.replace("/api/images/", "");
-  const match = /^(receipt|pizza)\/(\d+)-[\w.-]+$/.exec(key);
-  if (!match) {
-    throw new Error("Invalid image URL");
-  }
-  const age = Date.now() - Number(match[2]);
+  const { key } = parsed;
+  const age = Date.now() - parsed.uploadedAt;
   if (age > 60 * 60 * 1000 || age < -5 * 60 * 1000) {
     throw new Error("Image is too old to analyze");
   }
@@ -171,6 +174,13 @@ async function getImageAsBase64(imageUrl: string): Promise<string> {
     });
 
     const response = await r2Client.send(command);
+    if ((response.ContentLength ?? 0) > MAX_UPLOAD_BYTES) {
+      throw new Error("Image too large");
+    }
+    const contentType = response.ContentType ?? "";
+    if (!ALLOWED_UPLOAD_TYPES.includes(contentType)) {
+      throw new Error("Unsupported image type");
+    }
     const bodyContents = await response.Body?.transformToByteArray();
 
     if (!bodyContents) {
@@ -178,15 +188,17 @@ async function getImageAsBase64(imageUrl: string): Promise<string> {
     }
 
     const base64 = Buffer.from(bodyContents).toString("base64");
-    const contentType = response.ContentType || "image/jpeg";
     return `data:${contentType};base64,${base64}`;
   } catch (error) {
     console.error("Failed to fetch from R2:", error);
-    throw new Error(`Failed to fetch image from storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error("Failed to fetch image from storage");
   }
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await limitByIp(request, "analyze", ANALYZE_LIMIT, ANALYZE_WINDOW_SECONDS);
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { imageUrl } = requestSchema.parse(body);
@@ -260,7 +272,7 @@ If you cannot determine the total, estimate from visible items. Always return va
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid request or response", details: error.errors },
+        { error: "Invalid request or response" },
         { status: 400 }
       );
     }

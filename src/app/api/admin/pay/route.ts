@@ -2,50 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendUsdcPayment, MAX_PAYMENT_AMOUNT } from "@/lib/server-wallet";
 import { updateSubmissionInSheet } from "@/lib/google-sheets";
-
-// Parse admin credentials from env var
-function getAdminCredentials(): Record<string, string> {
-  const credentials = process.env.ADMIN_CREDENTIALS;
-  if (!credentials) {
-    return {};
-  }
-  try {
-    return JSON.parse(credentials);
-  } catch {
-    console.error("Failed to parse ADMIN_CREDENTIALS");
-    return {};
-  }
-}
-
-function verifyAdminPassword(password: string): string | null {
-  const credentials = getAdminCredentials();
-  for (const [name, pwd] of Object.entries(credentials)) {
-    if (pwd === password) {
-      return name;
-    }
-  }
-  return null;
-}
+import { requireSuperAdmin } from "@/lib/admin-auth";
 
 export async function POST(request: NextRequest) {
+  // Server-wallet payouts stay limited to env-configured superadmins (unchanged behavior).
+  const auth = await requireSuperAdmin(request);
+  if (!auth.ok) return auth.response;
+  const adminName = auth.admin.name;
+
   try {
-    const { submissionId, adminPassword, amount, recipientAddress } =
-      await request.json();
+    const { submissionId, amount } = await request.json();
 
     // Validate required fields
-    if (!submissionId || !adminPassword || !amount || !recipientAddress) {
+    if (typeof submissionId !== "string" || !submissionId || typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         { error: "Missing required fields", code: "BAD_REQUEST" },
         { status: 400 }
-      );
-    }
-
-    // Verify admin password
-    const adminName = verifyAdminPassword(adminPassword);
-    if (!adminName) {
-      return NextResponse.json(
-        { error: "Invalid admin password", code: "UNAUTHORIZED" },
-        { status: 401 }
       );
     }
 
@@ -89,8 +61,9 @@ export async function POST(request: NextRequest) {
     // Send USDC payment
     let txHash: string;
     try {
+      // Always pay the submitter's stored address, never a client-supplied one.
       const result = await sendUsdcPayment(
-        recipientAddress as `0x${string}`,
+        submission.walletAddress as `0x${string}`,
         amount
       );
       txHash = result.hash;

@@ -1,8 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { isAdminRequest } from "@/lib/admin-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 import { logSubmission, initializeSheet } from "@/lib/google-sheets";
+import { limitByIp } from "@/lib/rate-limit";
+import { parseUploadUrl, type UploadFolder } from "@/lib/upload-keys";
+
+// Public endpoint: throttle per IP and only accept photo URLs minted by our own
+// presign flow (right folder, uploaded recently).
+const SUBMIT_LIMIT = 10;
+const SUBMIT_WINDOW_SECONDS = 60 * 60;
+const MAX_PHOTO_AGE_MS = 24 * 60 * 60 * 1000;
+
+function photoUrl(folder: UploadFolder) {
+  return z.string().max(200).refine(
+    (url) => {
+      const parsed = parseUploadUrl(url);
+      if (!parsed || parsed.folder !== folder) return false;
+      const age = Date.now() - parsed.uploadedAt;
+      return age <= MAX_PHOTO_AGE_MS && age >= -5 * 60 * 1000;
+    },
+    { message: `Invalid ${folder} photo URL` }
+  );
+}
 
 // Initialize sheet headers on first load
 initializeSheet().catch(console.error);
@@ -19,26 +39,25 @@ const createSubmissionSchema = z.object({
     .refine((s) => ethereumAddressRegex.test(s), {
       message: "Invalid Ethereum address format",
     }),
-  ensName: z.string().optional(),
+  ensName: z.string().max(255).optional(),
   notes: z.string().max(500).optional(),
   // New multi-photo fields
-  pizzaPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
-  receiptPhotoUrls: z.array(z.string().min(1)).min(1).max(10).optional(),
+  pizzaPhotoUrls: z.array(photoUrl("pizza")).min(1).max(10).optional(),
+  receiptPhotoUrls: z.array(photoUrl("receipt")).min(1).max(10).optional(),
   // Legacy single-URL fields (for backward compat)
-  pizzaPhotoUrl: z.string().min(1).optional(),
-  receiptPhotoUrl: z.string().min(1).optional(),
-  extractedAmount: z.number().positive(),
-  finalAmount: z.number().positive(),
-  currency: z.string().default("USD"),
-  originalAmount: z.number().optional(),
-  originalCurrency: z.string().optional(),
-  exchangeRate: z.number().optional(),
+  pizzaPhotoUrl: photoUrl("pizza").optional(),
+  receiptPhotoUrl: photoUrl("receipt").optional(),
+  extractedAmount: z.number().positive().max(1_000_000),
+  finalAmount: z.number().positive().max(1_000_000),
+  currency: z.string().max(10).default("USD"),
+  originalAmount: z.number().nonnegative().max(99_999_999).optional(),
+  originalCurrency: z.string().max(10).optional(),
+  exchangeRate: z.number().nonnegative().max(1_000_000).optional(),
 });
 
 export async function GET(request: NextRequest) {
-  if (!(await isAdminRequest(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status") as SubmissionStatus | null;
@@ -72,6 +91,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await limitByIp(request, "submit", SUBMIT_LIMIT, SUBMIT_WINDOW_SECONDS);
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const data = createSubmissionSchema.parse(body);
@@ -151,7 +173,7 @@ export async function POST(request: NextRequest) {
       error,
     });
     return NextResponse.json(
-      { error: "Failed to create submission", details: errorMessage, code: errorCode },
+      { error: "Failed to create submission" },
       { status: 500 }
     );
   }
