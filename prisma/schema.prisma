@@ -52,6 +52,7 @@ model Submission {
   transactionHash String?          // Base transaction hash
   paidAt          DateTime?
   paidAmount      Decimal?         @db.Decimal(18, 6) // USDC amount (6 decimals)
+  payoutClaimedAt DateTime?        // Set while a server-wallet payout is in flight (double-pay lock)
 
   // Metadata
   createdAt       DateTime         @default(now())

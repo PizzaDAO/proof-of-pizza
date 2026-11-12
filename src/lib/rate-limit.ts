@@ -8,14 +8,65 @@ import { prisma } from "@/lib/prisma";
  * passed since its first hit.
  */
 
-/** Client IP as seen by Vercel's edge (these headers are set by Vercel, not the client). */
+/**
+ * Rate-limit identity for the client, from the IP Vercel's edge reports (these
+ * headers are set by Vercel, not the client). IPv4 (and IPv4-mapped IPv6) use
+ * the full address; other IPv6 addresses are bucketed by /64, since a single
+ * client typically controls a whole /64 and could otherwise rotate addresses.
+ */
 export function getClientIp(request: NextRequest): string {
-  return (
+  const raw =
     request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip")?.trim() ||
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    "unknown"
-  );
+    "unknown";
+  return rateLimitIdentity(raw);
+}
+
+const IPV4_RE = /^(\d{1,3})(\.\d{1,3}){3}$/;
+
+export function rateLimitIdentity(ip: string): string {
+  let addr = ip.trim().toLowerCase();
+  if (addr.startsWith("[")) addr = addr.slice(1, addr.indexOf("]") > 0 ? addr.indexOf("]") : undefined);
+  addr = addr.split("%")[0]; // drop IPv6 zone id
+  if (IPV4_RE.test(addr)) return addr;
+  if (!addr.includes(":")) return addr || "unknown";
+
+  const groups = expandIpv6(addr);
+  if (!groups) return addr; // unparseable: use as-is
+
+  // IPv4-mapped (::ffff:a.b.c.d) -> plain IPv4
+  if (groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff) {
+    return [groups[6] >> 8, groups[6] & 0xff, groups[7] >> 8, groups[7] & 0xff].join(".");
+  }
+  return `${groups.slice(0, 4).map((g) => g.toString(16)).join(":")}::/64`;
+}
+
+/** Expands an IPv6 address (with optional :: and trailing dotted IPv4) to 8 16-bit groups. */
+function expandIpv6(addr: string): number[] | null {
+  let tail: number[] = [];
+  const lastColon = addr.lastIndexOf(":");
+  const maybeV4 = addr.slice(lastColon + 1);
+  if (IPV4_RE.test(maybeV4)) {
+    const o = maybeV4.split(".").map(Number);
+    if (o.some((n) => n > 255)) return null;
+    tail = [(o[0] << 8) | o[1], (o[2] << 8) | o[3]];
+    addr = addr.slice(0, lastColon + 1) + "0"; // placeholder group, replaced below
+  }
+  const halves = addr.split("::");
+  if (halves.length > 2) return null;
+  const parse = (part: string) => (part ? part.split(":") : []);
+  const head = parse(halves[0]);
+  const rest = halves.length === 2 ? parse(halves[1]) : [];
+  if (tail.length) {
+    (halves.length === 2 ? rest : head).pop();
+  }
+  const fill = 8 - tail.length - head.length - rest.length;
+  if (halves.length === 2 ? fill < 0 : fill !== 0) return null;
+  const hex = [...head, ...Array(halves.length === 2 ? fill : 0).fill("0"), ...rest];
+  const groups = hex.map((h) => (/^[0-9a-f]{1,4}$/.test(h) ? parseInt(h, 16) : NaN));
+  if (groups.some(Number.isNaN)) return null;
+  return [...groups, ...tail];
 }
 
 export interface RateLimitResult {
@@ -52,23 +103,6 @@ export async function hitRateLimit(
   return {
     count,
     limited: count > limit,
-    retryAfterSeconds: retryAfter(row.windowStart, windowSeconds),
-  };
-}
-
-/** Read the current count for `key` without incrementing it. */
-export async function peekRateLimit(
-  key: string,
-  limit: number,
-  windowSeconds: number
-): Promise<RateLimitResult> {
-  const row = await prisma.rateLimit.findUnique({ where: { key } });
-  if (!row || row.windowStart.getTime() < Date.now() - windowSeconds * 1000) {
-    return { count: 0, limited: false, retryAfterSeconds: 0 };
-  }
-  return {
-    count: row.count,
-    limited: row.count >= limit,
     retryAfterSeconds: retryAfter(row.windowStart, windowSeconds),
   };
 }

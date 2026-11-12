@@ -117,6 +117,11 @@ export function ReimburseButton({
           case "INSUFFICIENT_BALANCE":
             setError("Admin wallet needs funding.");
             break;
+          case "PAYOUT_IN_PROGRESS":
+          case "TX_UNCONFIRMED":
+            setError(data.error);
+            onStatusChange();
+            break;
           case "ALREADY_PAID":
             setError("Already paid");
             onStatusChange();

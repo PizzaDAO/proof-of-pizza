@@ -95,11 +95,16 @@ export async function sendUsdcPayment(
     args: [recipientAddress, amountInUnits],
   });
 
-  // Wait for confirmation
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-  if (receipt.status !== "success") {
-    throw new Error("Transaction failed on-chain");
+  // Wait for confirmation. Any failure from here on happens after broadcast,
+  // so the error carries the hash: callers must not assume nothing was sent.
+  try {
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    if (receipt.status !== "success") {
+      throw new Error("Transaction failed on-chain");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw Object.assign(new Error(message), { hash, onChainFailure: message === "Transaction failed on-chain" });
   }
 
   return { hash };
