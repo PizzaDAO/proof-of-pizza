@@ -1,131 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import {
+  AdminSessionConfigError,
+  isCrossSite,
+  setAdminSessionCookie,
+  verifyAdminPassword,
+} from "@/lib/admin-auth";
+import { getClientIp, hitRateLimit, resetRateLimit, tooManyRequests } from "@/lib/rate-limit";
 
-// Simple in-memory rate limiting (resets on serverless cold start)
-const attempts = new Map<string, { count: number; lastAttempt: number }>();
+// Per-IP login throttle, stored in Postgres so it holds across serverless instances.
+// Every attempt counts; a successful login clears the counter.
 const MAX_ATTEMPTS = 10;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+const WINDOW_SECONDS = 15 * 60;
 
-function getClientIP(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
-function isRateLimited(ip: string): boolean {
-  const record = attempts.get(ip);
-  if (!record) return false;
-
-  // Reset if lockout period has passed
-  if (Date.now() - record.lastAttempt > LOCKOUT_DURATION) {
-    attempts.delete(ip);
-    return false;
-  }
-
-  return record.count >= MAX_ATTEMPTS;
-}
-
-function recordAttempt(ip: string, success: boolean): void {
-  if (success) {
-    attempts.delete(ip);
-    return;
-  }
-
-  const record = attempts.get(ip) || { count: 0, lastAttempt: 0 };
-  record.count += 1;
-  record.lastAttempt = Date.now();
-  attempts.set(ip, record);
-}
-
-// Parse admin credentials from env var
-function getAdminCredentials(): Record<string, string> {
-  const credentials = process.env.ADMIN_CREDENTIALS;
-  if (!credentials) {
-    // Fall back to single ADMIN_PASSWORD for backwards compatibility
-    const singlePassword = process.env.ADMIN_PASSWORD;
-    if (singlePassword) {
-      return { admin: singlePassword };
-    }
-    return {};
-  }
-  try {
-    return JSON.parse(credentials);
-  } catch {
-    console.error("Failed to parse ADMIN_CREDENTIALS");
-    return {};
-  }
-}
-
-function verifyEnvPassword(password: string): { valid: boolean; adminName?: string; isSuperAdmin?: boolean } {
-  const credentials = getAdminCredentials();
-
-  for (const [name, pwd] of Object.entries(credentials)) {
-    if (pwd === password) {
-      return { valid: true, adminName: name, isSuperAdmin: true };
-    }
-  }
-  return { valid: false };
-}
-
-async function verifyDbPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
-  // Get all active admins from database
-  const admins = await prisma.admin.findMany({
-    where: { isActive: true },
-  });
-
-  for (const admin of admins) {
-    const match = await bcrypt.compare(password, admin.passwordHash);
-    if (match) {
-      return { valid: true, adminName: admin.name, isSuperAdmin: admin.isSuperAdmin };
-    }
-  }
-  return { valid: false };
-}
-
-async function verifyPassword(password: string): Promise<{ valid: boolean; adminName?: string; isSuperAdmin?: boolean }> {
-  // First check env var credentials (superadmins)
-  const envResult = verifyEnvPassword(password);
-  if (envResult.valid) {
-    return envResult;
-  }
-
-  // Then check database admins
-  return verifyDbPassword(password);
-}
-
+/** POST /api/admin/verify — exchange the admin password for a session cookie. */
 export async function POST(request: NextRequest) {
-  const ip = getClientIP(request);
-
-  // Check rate limit
-  if (isRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "Too many attempts. Try again in 15 minutes." },
-      { status: 429 }
-    );
+  if (isCrossSite(request)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if ((process.env.ADMIN_SESSION_SECRET ?? "").length < 32) {
+    const message = new AdminSessionConfigError().message;
+    console.error(message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  const key = `admin-login:${getClientIp(request)}`;
+  let attempt;
   try {
-    const { password } = await request.json();
+    attempt = await hitRateLimit(key, MAX_ATTEMPTS, WINDOW_SECONDS);
+  } catch (error) {
+    // Fail closed: no throttle, no login.
+    console.error("Login rate limiter unavailable:", error);
+    return NextResponse.json({ error: "Login temporarily unavailable" }, { status: 503 });
+  }
+  if (attempt.limited) {
+    return tooManyRequests(attempt.retryAfterSeconds, "Too many attempts. Try again later.");
+  }
 
-    const { valid, adminName, isSuperAdmin } = await verifyPassword(password);
-
-    if (valid && adminName) {
-      recordAttempt(ip, true);
-      return NextResponse.json({ success: true, adminName, isSuperAdmin: !!isSuperAdmin });
-    }
-
-    recordAttempt(ip, false);
-    const record = attempts.get(ip);
-    const remaining = MAX_ATTEMPTS - (record?.count || 0);
-
-    return NextResponse.json(
-      { error: `Invalid password. ${remaining} attempts remaining.` },
-      { status: 401 }
-    );
+  let password: unknown;
+  try {
+    ({ password } = await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
+
+  const admin = await verifyAdminPassword(password);
+  if (!admin) {
+    const remaining = Math.max(0, MAX_ATTEMPTS - attempt.count);
+    return NextResponse.json(
+      { error: `Invalid password. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining.` },
+      { status: 401 }
+    );
+  }
+
+  await resetRateLimit(key).catch((error) => console.error("Failed to reset login counter:", error));
+
+  const response = NextResponse.json({
+    success: true,
+    adminName: admin.name,
+    isSuperAdmin: admin.isSuperAdmin,
+    canManageAdmins: admin.source === "env",
+  });
+  await setAdminSessionCookie(response, admin, password as string);
+  return response;
 }

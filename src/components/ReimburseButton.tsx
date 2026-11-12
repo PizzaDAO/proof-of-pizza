@@ -42,7 +42,7 @@ export function ReimburseButton({
 
   // Check admin wallet balance
   useEffect(() => {
-    fetch("/api/admin/wallet-balance")
+    adminFetch("/api/admin/wallet-balance")
       .then((res) => res.json())
       .then((data) => setWalletBalance(data.balance ?? 0))
       .catch(() => setWalletBalance(0));
@@ -91,18 +91,11 @@ export function ReimburseButton({
     setIsLoading(true);
 
     try {
-      const adminPassword = localStorage.getItem("admin_token");
-      if (!adminPassword) {
-        setError("Session expired. Please log in again.");
-        return;
-      }
-
-      const response = await fetch("/api/admin/pay", {
+      const response = await adminFetch("/api/admin/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submissionId,
-          adminPassword,
           amount,
           recipientAddress: walletAddress,
         }),
@@ -117,6 +110,9 @@ export function ReimburseButton({
             break;
           case "UNAUTHORIZED":
             setError("Session expired. Please log in again.");
+            break;
+          case "FORBIDDEN":
+            setError("Only superadmins can pay from the server wallet.");
             break;
           case "INSUFFICIENT_BALANCE":
             setError("Admin wallet needs funding.");

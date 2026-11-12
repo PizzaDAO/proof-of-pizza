@@ -82,3 +82,13 @@ model Admin {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// Fixed-window counters for per-IP rate limiting (admin login, uploads, submissions)
+model RateLimit {
+  key         String   @id // "<bucket>:<ip>"
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([updatedAt])
+}
