@@ -1,9 +1,18 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { base, mainnet } from "wagmi/chains";
+import { createConfig, http } from "wagmi";
+import { createWalletConnectors } from "@/lib/wallet/connectors";
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "Proof of Pizza",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo",
+// No WalletConnect / Reown project ID: see lib/wallet/connectors.ts.
+export const wagmiConfig = createConfig({
   chains: [base, mainnet],
+  connectors: createWalletConnectors({
+    name: "Proof of Pizza",
+    url: "https://proofof.pizza",
+    icon: "https://proofof.pizza/pizzadao-logo.png",
+  }),
+  transports: {
+    [base.id]: http(),
+    [mainnet.id]: http("https://ethereum-rpc.publicnode.com", { batch: false }),
+  },
   ssr: true,
 });
