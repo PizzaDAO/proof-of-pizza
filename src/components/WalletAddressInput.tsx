@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { OpenInWallet } from "@/components/OpenInWallet";
 import { useEnsResolution } from "@/hooks/useEnsResolution";
 
 interface WalletAddressInputProps {
@@ -98,6 +99,8 @@ export function WalletAddressInput({
           </ConnectButton.Custom>
         )}
       </div>
+
+      {!isConnected && <OpenInWallet className="mt-3" />}
 
       {isEns && address && (
         <p className="mt-2 text-sm text-gray-600">
