@@ -5,9 +5,9 @@
  *
  * Contract (Bearer auth with PIZZADAO_API_KEY):
  *   POST {base}/api/proof-of-pizza/codes/lookup  { code }
- *     -> 200 { status: "valid"|"redeemed"|"void"|"unknown", holderName, acquiredAt, redeemedAt, redeemedRef }
- *   POST {base}/api/proof-of-pizza/codes/redeem  { code, ref }   (ref = "proofofpizza:<submissionId>")
- *     -> 200 { ok, already } | 404 unknown/void | 409 already used by another ref
+ *     -> 200 { status: "active"|"redeemed"|"void"|"unknown", holderName, acquiredAt, redeemedAt, redeemedRef }
+ *   POST {base}/api/proof-of-pizza/codes/redeem  { code, ref }   (ref = BARE submission id; server stores "proofofpizza:<ref>")
+ *     -> 200 { ok, already, redeemedAt } | 404 unknown_or_void | 409 already_redeemed
  *   400 malformed code, 401 bad key, 429 rate limited, 503 API not configured
  */
 
@@ -31,7 +31,8 @@ export type RedeemResult =
   | { ok: true; already: boolean }
   | { ok: false; reason: "unknown" | "used" | "unavailable"; error: string };
 
-export function redeemRef(submissionId: string): string {
+/** What pizzadao.org stores as redeemedRef for a submission. */
+export function storedRedeemRef(submissionId: string): string {
   return `proofofpizza:${submissionId}`;
 }
 
@@ -63,7 +64,7 @@ export async function lookupPizzadaoCode(code: string): Promise<LookupResult> {
     if (!res) return { ok: false, error: NOT_CONFIGURED };
     if (!res.ok) return { ok: false, error: `${UNREACHABLE} (${res.status})` };
     const data = await res.json();
-    const status: CodeStatus = ["valid", "redeemed", "void"].includes(data?.status) ? data.status : "unknown";
+    const status: CodeStatus = data?.status === "active" ? "valid" : ["redeemed", "void"].includes(data?.status) ? data.status : "unknown";
     return {
       ok: true,
       lookup: {
@@ -83,7 +84,7 @@ export async function lookupPizzadaoCode(code: string): Promise<LookupResult> {
 /** Idempotent on submissionId: a repeat redeem of the same submission returns already: true. */
 export async function redeemPizzadaoCode(code: string, submissionId: string): Promise<RedeemResult> {
   try {
-    const res = await post("redeem", { code, ref: redeemRef(submissionId) });
+    const res = await post("redeem", { code, ref: submissionId });
     if (!res) return { ok: false, reason: "unavailable", error: NOT_CONFIGURED };
     if (res.ok) {
       const data = await res.json().catch(() => ({}));

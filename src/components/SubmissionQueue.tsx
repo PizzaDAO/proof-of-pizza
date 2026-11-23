@@ -62,6 +62,7 @@ interface CodeInfo {
   status: "valid" | "redeemed" | "void" | "unknown";
   holderName: string | null;
   acquiredAt: string | null;
+  redeemedBySelf?: boolean;
 }
 
 const BADGE_STYLES: Record<string, string> = {
@@ -110,7 +111,7 @@ function PizzadaoCodeBadge({
   } else if (failed) {
     label = "lookup failed";
   } else if (info) {
-    key = info.status;
+    key = info.status === "redeemed" && info.redeemedBySelf ? "valid" : info.status;
     const date = info.acquiredAt
       ? new Date(info.acquiredAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
       : null;
@@ -118,7 +119,9 @@ function PizzadaoCodeBadge({
       info.status === "valid"
         ? ["valid", info.holderName, date].filter(Boolean).join(" · ")
         : info.status === "redeemed"
-          ? "used"
+          ? info.redeemedBySelf
+            ? "redeemed by this submission"
+            : "used"
           : info.status;
   }
 

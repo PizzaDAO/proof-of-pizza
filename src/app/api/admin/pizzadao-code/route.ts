@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { limitByIp } from "@/lib/rate-limit";
-import { lookupPizzadaoCode } from "@/lib/pizzadao";
+import { lookupPizzadaoCode, storedRedeemRef } from "@/lib/pizzadao";
 
 // Admin-only: look up the PizzaDAO code attached to a submission (server-to-server).
 export async function GET(request: NextRequest) {
@@ -32,5 +32,7 @@ export async function GET(request: NextRequest) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
-  return NextResponse.json(result.lookup, { headers: { "Cache-Control": "no-store" } });
+  const redeemedBySelf =
+    result.lookup.status === "redeemed" && result.lookup.redeemedRef === storedRedeemRef(submissionId);
+  return NextResponse.json({ ...result.lookup, redeemedBySelf }, { headers: { "Cache-Control": "no-store" } });
 }
