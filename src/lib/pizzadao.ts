@@ -1,3 +1,4 @@
+import "server-only";
 /**
  * Server-to-server client for the pizzadao.org redemption-code API.
  * All request/response shapes live here so they are easy to adjust.

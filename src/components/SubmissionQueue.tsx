@@ -131,7 +131,7 @@ function PizzadaoCodeBadge({
       <span className="font-mono font-semibold text-gray-800">{code}</span>{" "}
       <span className={`px-2 py-0.5 rounded-full ${BADGE_STYLES[key]}`}>{label}</span>
       {error && !redeemedAt && <p className="mt-1 text-red-600">{error}</p>}
-      {key !== "valid" && key !== "redeemed" && key !== "error" && !redeemedAt && (
+      {key !== "valid" && key !== "error" && !redeemedAt && (
         <p className="mt-1 text-red-600">Approval is blocked until the code is valid.</p>
       )}
     </div>

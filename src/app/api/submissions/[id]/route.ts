@@ -63,7 +63,7 @@ export async function PATCH(
     // call is idempotent on the submission id, so if the save below fails, retrying
     // the approval just gets { already: true }. A bad, used or unverifiable code
     // blocks the approval (nothing is saved except the error note).
-    if (data.status === "APPROVED") {
+    if (data.status === "APPROVED" || data.status === "PAID") {
       const existing = await prisma.submission.findUnique({
         where: { id },
         select: { pizzadaoCode: true, pizzadaoCodeRedeemedAt: true },
