@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin-auth";
 import { updateSubmissionInSheet } from "@/lib/google-sheets";
+import { redeemPizzadaoCode } from "@/lib/pizzadao";
 
 const SubmissionStatusEnum = z.enum(["PENDING", "APPROVED", "REJECTED", "PAID"]);
 
@@ -57,6 +58,35 @@ export async function PATCH(
     const data = updateSubmissionSchema.parse(body);
 
     const updateData: Record<string, unknown> = {};
+
+    // A PizzaDAO code gates approval. Redeem BEFORE saving the approval: the redeem
+    // call is idempotent on the submission id, so if the save below fails, retrying
+    // the approval just gets { already: true }. A bad, used or unverifiable code
+    // blocks the approval (nothing is saved except the error note).
+    if (data.status === "APPROVED") {
+      const existing = await prisma.submission.findUnique({
+        where: { id },
+        select: { pizzadaoCode: true, pizzadaoCodeRedeemedAt: true },
+      });
+      if (existing?.pizzadaoCode && !existing.pizzadaoCodeRedeemedAt) {
+        const redeemed = await redeemPizzadaoCode(existing.pizzadaoCode, id);
+        if (!redeemed.ok) {
+          await prisma.submission
+            .update({ where: { id }, data: { pizzadaoCodeError: redeemed.error } })
+            .catch(console.error);
+          return NextResponse.json(
+            {
+              error: `Cannot approve: ${redeemed.error}.`,
+              code: "PIZZADAO_CODE_BLOCKED",
+              reason: redeemed.reason,
+            },
+            { status: redeemed.reason === "unavailable" ? 502 : 409 }
+          );
+        }
+        updateData.pizzadaoCodeRedeemedAt = new Date();
+        updateData.pizzadaoCodeError = null;
+      }
+    }
 
     if (data.status) {
       updateData.status = data.status;

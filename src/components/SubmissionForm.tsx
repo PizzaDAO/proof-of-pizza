@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { MultiImageUpload } from "./MultiImageUpload";
 import { WalletAddressInput } from "./WalletAddressInput";
+import { PIZZADAO_CODE_LENGTH } from "@/lib/pizzadao-code";
 
 interface ReceiptBreakdown {
   url: string;
@@ -21,6 +22,7 @@ interface FormState {
   pizzaPhotoUrls: string[];
   receiptPhotoUrls: string[];
   notes: string;
+  pizzadaoCode: string;
   walletInput: string;
   resolvedAddress: string | null;
   amount: number | null;
@@ -35,6 +37,7 @@ export function SubmissionForm() {
     pizzaPhotoUrls: [],
     receiptPhotoUrls: [],
     notes: "",
+    pizzadaoCode: "",
     walletInput: "",
     resolvedAddress: null,
     amount: null,
@@ -175,6 +178,7 @@ export function SubmissionForm() {
             ? form.walletInput
             : undefined,
           notes: form.notes || undefined,
+          pizzadaoCode: form.pizzadaoCode.trim() || undefined,
           pizzaPhotoUrls: form.pizzaPhotoUrls,
           receiptPhotoUrls: form.receiptPhotoUrls,
           // Keep legacy fields for backward compat
@@ -243,6 +247,7 @@ export function SubmissionForm() {
               pizzaPhotoUrls: [],
               receiptPhotoUrls: [],
               notes: "",
+              pizzadaoCode: "",
               walletInput: "",
               resolvedAddress: null,
               amount: null,
@@ -329,6 +334,29 @@ export function SubmissionForm() {
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-sm text-gray-900"
         />
         <p className="text-xs text-gray-400 mt-1">{form.notes.length}/500</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          PizzaDAO code <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <input
+          type="text"
+          value={form.pizzadaoCode}
+          onChange={(e) =>
+            setForm((prev) => ({
+              ...prev,
+              pizzadaoCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, PIZZADAO_CODE_LENGTH),
+            }))
+          }
+          placeholder="ABCD"
+          maxLength={PIZZADAO_CODE_LENGTH}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono tracking-widest text-sm text-gray-900"
+        />
+        <p className="text-xs text-gray-400 mt-1">From your inventory on pizzadao.org</p>
       </div>
 
       {(isAnyAnalyzing || receiptBreakdowns.length > 0) && (

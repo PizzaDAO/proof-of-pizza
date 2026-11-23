@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/admin-auth";
 import { logSubmission, initializeSheet } from "@/lib/google-sheets";
 import { limitByIp } from "@/lib/rate-limit";
+import { normalizePizzadaoCode } from "@/lib/pizzadao-code";
 import { parseUploadUrl, type UploadFolder } from "@/lib/upload-keys";
 
 // Public endpoint: throttle per IP and only accept photo URLs minted by our own
@@ -41,6 +42,20 @@ const createSubmissionSchema = z.object({
     }),
   ensName: z.string().max(255).optional(),
   notes: z.string().max(500).optional(),
+  // Optional PizzaDAO code; format-checked only (no validity lookup on this public endpoint)
+  pizzadaoCode: z
+    .string()
+    .max(20)
+    .optional()
+    .transform((s, ctx) => {
+      if (!s || !s.trim()) return undefined;
+      const code = normalizePizzadaoCode(s);
+      if (!code) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid PizzaDAO code" });
+        return z.NEVER;
+      }
+      return code;
+    }),
   // New multi-photo fields
   pizzaPhotoUrls: z.array(photoUrl("pizza")).min(1).max(10).optional(),
   receiptPhotoUrls: z.array(photoUrl("receipt")).min(1).max(10).optional(),
@@ -119,6 +134,7 @@ export async function POST(request: NextRequest) {
         walletAddress: data.walletAddress,
         ensName: data.ensName,
         notes: data.notes,
+        pizzadaoCode: data.pizzadaoCode,
         pizzaPhotoUrl,
         receiptPhotoUrl,
         pizzaPhotoUrls,

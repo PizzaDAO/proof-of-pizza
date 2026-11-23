@@ -20,6 +20,9 @@ interface Submission {
   pizzaPhotoUrls?: string[];
   receiptPhotoUrls?: string[];
   notes: string | null;
+  pizzadaoCode?: string | null;
+  pizzadaoCodeRedeemedAt?: string | null;
+  pizzadaoCodeError?: string | null;
   extractedAmount: string;
   finalAmount: string;
   currency: string;
@@ -53,6 +56,83 @@ function getReceiptUrls(submission: Submission): string[] {
     return submission.receiptPhotoUrls;
   }
   return submission.receiptPhotoUrl ? [submission.receiptPhotoUrl] : [];
+}
+
+interface CodeInfo {
+  status: "valid" | "redeemed" | "void" | "unknown";
+  holderName: string | null;
+  acquiredAt: string | null;
+}
+
+const BADGE_STYLES: Record<string, string> = {
+  valid: "bg-green-100 text-green-700",
+  redeemed: "bg-gray-200 text-gray-700",
+  void: "bg-red-100 text-red-700",
+  unknown: "bg-red-100 text-red-700",
+  error: "bg-yellow-100 text-yellow-700",
+};
+
+// Lazily looks the code up (server-side, via /api/admin/pizzadao-code) once the card renders.
+function PizzadaoCodeBadge({
+  submissionId,
+  code,
+  redeemedAt,
+  error,
+}: {
+  submissionId: string;
+  code: string;
+  redeemedAt: string | null;
+  error: string | null;
+}) {
+  const [info, setInfo] = useState<CodeInfo | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (redeemedAt) return; // already redeemed by this submission, nothing to look up
+    let cancelled = false;
+    adminFetch(`/api/admin/pizzadao-code?submissionId=${encodeURIComponent(submissionId)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const data = await res.json();
+        if (!cancelled) setInfo(data);
+      })
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [submissionId, redeemedAt]);
+
+  let key = "error";
+  let label = "checking...";
+  if (redeemedAt) {
+    key = "redeemed";
+    label = `redeemed ${new Date(redeemedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  } else if (failed) {
+    label = "lookup failed";
+  } else if (info) {
+    key = info.status;
+    const date = info.acquiredAt
+      ? new Date(info.acquiredAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : null;
+    label =
+      info.status === "valid"
+        ? ["valid", info.holderName, date].filter(Boolean).join(" · ")
+        : info.status === "redeemed"
+          ? "used"
+          : info.status;
+  }
+
+  return (
+    <div className="mt-2 text-xs">
+      <span className="text-gray-500">PizzaDAO code </span>
+      <span className="font-mono font-semibold text-gray-800">{code}</span>{" "}
+      <span className={`px-2 py-0.5 rounded-full ${BADGE_STYLES[key]}`}>{label}</span>
+      {error && !redeemedAt && <p className="mt-1 text-red-600">{error}</p>}
+      {key !== "valid" && key !== "redeemed" && key !== "error" && !redeemedAt && (
+        <p className="mt-1 text-red-600">Approval is blocked until the code is valid.</p>
+      )}
+    </div>
+  );
 }
 
 export function SubmissionQueue() {
@@ -160,7 +240,16 @@ export function SubmissionQueue() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "APPROVED" }),
       });
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        // A bad PizzaDAO code blocks approval; show the server's reason.
+        if (body?.code === "PIZZADAO_CODE_BLOCKED") {
+          setErrorMsg(body.error);
+          fetchSubmissions();
+          return;
+        }
+        throw new Error(`Request failed (${res.status})`);
+      }
       fetchSubmissions();
     } catch (error) {
       console.error("Failed to approve:", error);
@@ -462,6 +551,14 @@ export function SubmissionQueue() {
                       <p className="mt-1 text-xs text-gray-500 italic line-clamp-2">
                         {submission.notes}
                       </p>
+                    )}
+                    {submission.pizzadaoCode && (
+                      <PizzadaoCodeBadge
+                        submissionId={submission.id}
+                        code={submission.pizzadaoCode}
+                        redeemedAt={submission.pizzadaoCodeRedeemedAt ?? null}
+                        error={submission.pizzadaoCodeError ?? null}
+                      />
                     )}
                   </div>
 
